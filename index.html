@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="container" width="352" height="288" style="width:352px;height:288px;display: block;margin:5px auto;border:1px solid red;"></canvas>
+    <script src="./js/index.js" ></script>
+
+    <script>
+        var drawUtil = new GraffitiCanvas();
+        //初始化，(如果浏览器不支持H5，会初始化失败，返回false)
+        if (drawUtil.init({ 'id': 'container' })) {
+            //加载图片
+            var imgsrc = './img/a.jpg';
+            if (!drawUtil.isNull(imgsrc)) {
+                drawUtil.setBgPic(imgsrc, true);//设置背景图片（异步加载图片）
+            }
+        }
+        drawUtil.begin(4);//选择画笔
+    </script>
+</body>
+
+</html>
