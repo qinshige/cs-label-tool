@@ -4,11 +4,11 @@ GraffitiCanvas = (function () {
         isNull = function (s) { return s == undefined || typeof (s) == 'undefined' || s == null || s == 'null' || s === '' || s.length < 1 },//是否为null或kong或underfind
         isTure = function (s) { return s == true || s == 'true' },//是否为true
         hideDefRM = function () { document.oncontextmenu = function () { return false } };//屏蔽浏览器默认鼠标事件
-    //全局常量
+    //全局常量    
     var graphkind = {//绘图类型
         'cursor': 0, 'pen': 1, 'line': 2, 'trian': 3, 'rect': 4, 'poly': 5, 'circle': 6, 'arrow': 21, 'parallel': 41, 'trapezoid': 42
     },
-    cursors = ['crosshair', 'pointer']; //鼠标图形
+        cursors = ['crosshair', 'pointer']; //鼠标图形
     //全局变量
     var cbtCanvas,/**绘图容器*/
         cxt,/**绘图对象*/
@@ -47,7 +47,6 @@ GraffitiCanvas = (function () {
         if (isNull(drawnSnapshot)) {
             return false;
         }
-        console.log("绘制快照");
         cxt.putImageData(drawnSnapshot, 0, 0);
         return true;
     }
@@ -80,6 +79,7 @@ GraffitiCanvas = (function () {
     var Poly = (function (ps1) {
         var ps = isNull(ps1) ? new Array() : ps1;
         var size = ps.length;
+        console.log(ps)
         return {
             set: function (ps2) {
                 ps = ps2;
@@ -352,9 +352,19 @@ GraffitiCanvas = (function () {
     var beginDrawing = function () {
         ctrlConfig.isPainting = true;
     }
+    /**获取当前坐标点 */
+    // var getCuPoint
     /**结束绘制状态*/
     var stopDrawing = function () {
         ctrlConfig.isPainting = false;
+        if (getCuGraph()) {
+            const { get, add, draw, getSize, pop, set, setPoint, shift } = getCuGraph();
+            const pointAll = []
+            for (let i in get()) {
+                pointAll.push(getCuPoint(i))
+            }
+            console.log("--=->>", get());
+        }
         if (isContinuous()) {//判断是否连续绘图
             recordSnapshot();//记录画板快照
         }
@@ -369,6 +379,7 @@ GraffitiCanvas = (function () {
     }
     /**获取当前绘制的图形*/
     var getCuGraph = function () {
+        console.log("000", ctrlConfig);
         return ctrlConfig.cuGraph;
     }
     /**设置开始坐标点（线条的起始点，三角形的顶点，圆形的圆心，四边形的左上角或右下角，多边形的起始点）*/
@@ -639,7 +650,7 @@ GraffitiCanvas = (function () {
     }
     //鼠标移出
     var mouseOut = function (e) {
-        console.log("鼠标移出绘制区域" + e.offsetX + "," + e.offsetY);
+        // console.log("鼠标移出绘制区域" + e.offsetX + "," + e.offsetY);
         if (isDrawing()) {
             console.log("停止绘制");
             if (ctrlConfig.kind > 1) {
@@ -673,6 +684,7 @@ GraffitiCanvas = (function () {
                 return false;
             }
         },
+        stopDrawing: stopDrawing,
         /**是否连续绘图*/
         isContinuous: isContinuous,
         /**设置背景图片*/
