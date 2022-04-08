@@ -7,6 +7,10 @@
     <meta name="viewport"
         content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
     <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
         .tooltip-pen {
             position: fixed;
             width: 40px;
@@ -14,7 +18,8 @@
             top: 5%;
             left: 650px;
             z-index: 999;
-            background-color: #737373;
+            color: #1eff00;
+            background-color: rgba(255, 255, 255, 0);
             border-radius: 5px;
         }
     </style>
@@ -22,27 +27,35 @@
 </head>
 
 <body>
-    <div id="main"></div>
     <div class="tooltip-pen">
         <b>
             <input type="button" value="铅笔" onclick="dosave('pen');" />
             <input type="button" value="橡皮檫" onclick="dosave('eraser');" />
             <input type="button" value="橡皮檫" onclick="dosave('save');" />
+            <input type="button" value="橡皮檫" onclick="changeStyle()" />
         </b>
     </div>
+    <div id="main">
+        
+    </div>
+    
     <script type="module">
         import AiLabel from "./js/label.js";
         // 切换
         function initMap() {
             AiLabel.initMap({
                 el: "#main",
-                src: "./img/b.jpg",
+                src: "./img/a.jpg",
             })
         }
         initMap();
         window.dosave = (val) => {
             console.log(val)
             AiLabel.changeTools(val)
+        }
+
+        window.changeStyle = (val) => {
+            AiLabel.setDraw("#fff")
         }
     </script>
 
