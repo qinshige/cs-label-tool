@@ -4,20 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <title>绘制组件</title>
-    <meta name="viewport"
-        content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
     <style>
         * {
             padding: 0;
             margin: 0;
         }
+        
         .tooltip-pen {
             position: fixed;
             width: 40px;
             height: 125px;
             top: 5%;
             left: 650px;
-            z-index: 999;
+            z-index: 1000;
             color: #1eff00;
             background-color: rgba(255, 255, 255, 0);
             border-radius: 5px;
@@ -31,31 +31,15 @@
         <b>
             <input type="button" value="铅笔" onclick="dosave('pen');" />
             <input type="button" value="橡皮檫" onclick="dosave('eraser');" />
-            <input type="button" value="橡皮檫" onclick="dosave('save');" />
-            <input type="button" value="橡皮檫" onclick="changeStyle()" />
+            <input type="button" value="Base64图片" onclick="dosave('save');" />
+            <input type="button" value="绘制矩形" onclick="dosave('rect');" />
+            <input type="button" value="设置样式" onclick="changeStyle()" />
         </b>
     </div>
-    <div id="main">
-        
-    </div>
-    
-    <script type="module">
-        import AiLabel from "./js/label.js";
-        // 切换
-        function initMap() {
-            AiLabel.initMap({
-                el: "#main",
-                src: "./img/a.jpg",
-            })
-        }
-        initMap();
-        window.dosave = (val) => {
-            console.log(val)
-            AiLabel.changeTools(val)
-        }
+    <div id="main"></div>
 
-        window.changeStyle = (val) => {
-            AiLabel.setDraw("#fff")
+    <script type="module">
+        import AiLabel from "./js/label.js"; function initMap() { AiLabel.initMap({ el: "#main", src: "./img/a.jpg", }) } initMap(); window.dosave = (val) => { console.log(val); AiLabel.changeTools(val) }; window.changeStyle = (val) => { AiLabel.setDraw("#fff")
         }
     </script>
 

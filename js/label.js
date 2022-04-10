@@ -107,7 +107,9 @@ class AiLabel {
                 break;
             case "rect":
                 this.canvas2.style.cursor = "crosshair";
-                this.drawRect();
+                this.cs2Ctx.lineWidth = 2 / this.scale;
+                this.cs2Ctx.strokeStyle = "red ";
+                this.drawRectMain();
                 break;
         };
 
@@ -129,13 +131,25 @@ class AiLabel {
             this.setScale();
         }
     };
-
-    // 绘制矩形
     drawRect() {
-        this.cs2Ctx.strokeStyle = "red ";
-
+        const { startState } = this.rectData;
+        if (startState) {
+            this.cs2Ctx.clearRect(0, 0, this.canvas2.width, this.canvas2.height);
+            const ract = {
+                x: this.rectData.startX,
+                y: this.rectData.startY,
+                width: this.rectData.endX - this.rectData.startX,
+                height: this.rectData.endY - this.rectData.startY
+            }
+            this.getRectData.push(ract);
+            this.rectData.startState = false;
+            this.continuousDrawRact();
+            this.cs2Ctx.closePath();
+        }
+    };
+    // 绘制矩形
+    drawRectMain() {
         this.canvas2.onmousedown = (event) => {
-            this.cs2Ctx.lineWidth = 2 / this.scale;
             this.rectData.startX = event.offsetX;
             this.rectData.startY = event.offsetY;
             this.rectData.startState = true;
@@ -146,39 +160,18 @@ class AiLabel {
                     this.rectData.endX = event.offsetX;
                     this.rectData.endY = event.offsetY;
                     this.cs2Ctx.beginPath();
+                    this.cs2Ctx.moveTo(event.offsetX, event.offsetY);
                     this.cs2Ctx.strokeRect(this.rectData.startX, this.rectData.startY, this.rectData.endX - this.rectData.startX, this.rectData.endY - this.rectData.startY);
                     this.continuousDrawRact();
                 }
             }
         }
-
-        this.canvas2.onmouseup = (event) => {
-            const { startState } = this.rectData;
-            if (startState) {
-                this.cs2Ctx.clearRect(0, 0, this.canvas2.width, this.canvas2.height);
-                const ract = {
-                    x: this.rectData.startX,
-                    y: this.rectData.startY,
-                    width: this.rectData.endX - this.rectData.startX,
-                    height: this.rectData.endY - this.rectData.startY
-                }
-                this.getRectData.push(ract);
-                this.rectData.startState = false;
-                this.continuousDrawRact();
-                this.cs2Ctx.closePath();
-            }
-
-        };
-
+        this.canvas2.onmouseup = () => { this.drawRect(); };
         // onmouseleave事件
-        this.canvas2.onmouseleave = () => {
-            this.rectData.startState = false;
-            this.cs2Ctx.closePath();
-        }
+        this.canvas2.onmouseleave = () => { this.drawRect(); }
     };
     // 连续绘制
     continuousDrawRact() {
-        console.log(this.getRectData);
         for (let item of this.getRectData) {
             this.cs2Ctx.strokeRect(item.x, item.y, item.width, item.height);
         }
@@ -200,7 +193,6 @@ class AiLabel {
             this.flag = true;
             this.cs2Ctx.lineWidth = this.defaultLineWidth / this.scale;
             this.cs2Ctx.strokeStyle = this.theColor;
-
             // onmousemove事件
             this.canvas2.onmousemove = (event) => {
                 if (this.flag) {
