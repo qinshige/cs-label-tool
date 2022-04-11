@@ -29,7 +29,6 @@ class AiLabel {
         startState: false
     };
 
-
     // 设置缩放比例
     setScale() {
         this.canvas1.style.transform = `scale(${this.scale})`;
@@ -166,7 +165,9 @@ class AiLabel {
                 }
             }
         }
-        this.canvas2.onmouseup = () => { this.drawRect(); };
+        this.canvas2.onmouseup = () => { this.drawRect(); 
+		  console.log(this.cs2Ctx)
+		};
         // onmouseleave事件
         this.canvas2.onmouseleave = () => { this.drawRect(); }
     };

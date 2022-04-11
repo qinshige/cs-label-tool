@@ -1,22 +1,106 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang='en'>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta http-equiv='X-UA-Compatible' content='ie=edge'>
     <title></title>
+    <style>
+        .text {
+            width: 100%;
+            height: 100%;
+            font-size: 8px;
+            cursor: pointer;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        #polygon {
+            /* transform: rotate(45deg); 
+            transform-origin: 50% 50%; */
+        }
+
+        #neirong {
+            display: block;
+            transition: all .2;
+        }
+    </style>
 </head>
 
 <body>
-    <svg id="main_svg" width="400" height="400" style="border:1px solid #ccc;">
-        <text id="text" x="0" y="15" fill="red">I love SVG</text>    
+    <svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' οnlοad='init()'>
+        <svg id='neibu' x='0' y='10'>
+            <rect width='100' height='20' style='fill:rgb(239, 239, 239); stroke: #ccc; stroke-width: 1;' />
+            <text id='label' class='text' x='48' y='11'>标签名</text>
+            <rect width='18' x='1' y='1' height='18' style='fill: rgb(239, 239,1);' />
+            <text id='text' class='text' x='9' y='11'>1</text>
+            <rect x='81' width='18' x='1' y='1' height='18' style='fill: rgb(239, 239,1);' />
+            <svg class='text' id='polygon' x='86' y='8' width='18' height='18' transform='rotate(180 18 36)'>
+                <polygon points='0,0,4,4,8,0' style='fill: #000;'>
+                    <!-- <animateTransform attributeName='transform' attributeType='XML' type='rotate' from='0 2 1'
+                        to='360 2 3' dur='1s' repeatCount='indefinite' /> -->
+                </polygon>
+            </svg>
+        </svg>
+        <svg id='neirong' width='100' x='0' y='30'>
+            <!-- <svg class='data' y='0'>
+                <rect width='100' height='20' style='fill:rgb(239, 239, 239); stroke: #ccc; stroke-width: 1;' />
+                <text id='label' class='text' x='48' y='11'>标签名</text>
+                <rect width='18' x='1' y='1' height='18' style='fill: rgb(239, 239,1);' />
+                <text id='text' class='text' x='9' y='11'>1</text>
+            </svg>
+            <svg class='data' y='20'>
+                <rect width='100' height='20' style='fill:rgb(239, 239, 239); stroke: #ccc; stroke-width: 1;' />
+                <text id='label' class='text' x='48' y='11'>标签名</text>
+                <rect width='18' x='1' y='1' height='18' style='fill: rgb(239, 239,1);' />
+                <text id='text' class='text' x='9' y='11'>1</text>
+            </svg> -->
+        </svg>
     </svg>
+
     <script>
-        var main = document.getElementById("text");
-        main.onclick = function () {
-            text.setAttribute("fill","#000")
-        }
+        var main = document.getElementById('text');
+        var polygon = document.getElementById('polygon');
+        var neirong = document.getElementById('neirong');
+        function init() 
+             main.textContent='标签名11'
+        };
+        var data = [{
+            label: '标签名1',
+        },{
+            label: '标签名2'
+        }];
+
+        function createTag(tag,objAttr){   
+            var svgNS='http://www.w3.org/2000/svg'; 
+            var oTag = document.createElementNS(svgNS , tag);    
+            for(let attr in objAttr){
+                oTag.setAttribute(attr , objAttr[attr]);
+            }    
+            return oTag;
+        };
+        function createElement(index) {
+           var svg = createTag("svg",{class: 'data', y: '0'});
+           svg.setAttribute('y', (index+1)*10);
+           var rect1 = createTag("rect",{width:'100',height:'20',style:'fill:rgb(239, 239, 239); stroke: #ccc; stroke-width: 1;'});
+           var text1 = createTag("text", {class:'text', x:'48',y:'11'});
+           text1.textContent = data[index].label;
+           var rect2 = createTag("rect",{width:'18',x:'1',y:'1',height:'18',style:'fill: rgb(239, 239,1);'});
+           var text2 = createTag("text", {class:'text', x:'9', y:'11'});
+           text2.textContent = index+1;
+           svg.appendChild(rect1);
+           svg.appendChild(text1);
+           svg.appendChild(rect2);
+           svg.appendChild(text2);
+           neirong.appendChild(svg);
+        };
+        polygon.onclock = function () {
+            init();
+            for(let i=0; i < data.length; i++){
+                createElement(i);
+            }
+        };
     </script>
 </body>
 

@@ -4,13 +4,33 @@
 <head>
     <meta charset="UTF-8">
     <title>绘制组件</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
     <style>
         * {
             padding: 0;
             margin: 0;
         }
-        
+
+        .text {
+            width: 100%;
+            height: 100%;
+            font-size: 8px;
+            cursor: pointer;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        #polygon {
+            /* transform: rotate(45deg); 
+            transform-origin: 50% 50%; */
+        }
+
+        #neirong {
+            display: block;
+            transition: all .2s;
+        }
+
         .tooltip-pen {
             position: fixed;
             width: 40px;
@@ -22,8 +42,19 @@
             background-color: rgba(255, 255, 255, 0);
             border-radius: 5px;
         }
-    </style>
 
+        #svg_body {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            margin: auto;
+        }
+
+        .edit {
+            display: none;
+            transition: all .2s;
+        }
+    </style>
 </head>
 
 <body>
@@ -36,12 +67,130 @@
             <input type="button" value="设置样式" onclick="changeStyle()" />
         </b>
     </div>
-    <div id="main"></div>
+    <div id="svg_body"></div>
+    <script>
+        const labelData = [
+            {
+                id: new Date().getTime(),
+                width: 220,
+                height: 220,
+                x: 220,
+                y: 40,
+                style: {
+                    fillStyle: 'rgb(239, 239, 239)',
+                    stroke: '#2c9c21',
+                    strokeWidth: 1
+                }
+            }
+        ];
 
-    <script type="module">
-        import AiLabel from "./js/label.js"; function initMap() { AiLabel.initMap({ el: "#main", src: "./img/a.jpg", }) } initMap(); window.dosave = (val) => { console.log(val); AiLabel.changeTools(val) }; window.changeStyle = (val) => { AiLabel.setDraw("#fff")
-        }
+        function createTag(tag, objAttr) {
+            var svgNS = 'http://www.w3.org/2000/svg';
+            var oTag = document.createElementNS(svgNS, tag);
+            if (tag === 'g') {
+                oTag.setAttribute('ondblclick', `handlerG(${objAttr['id']})`);
+            }
+            for (let attr in objAttr) {
+                oTag.setAttribute(attr, objAttr[attr]);
+            }
+            return oTag;
+        };
+        // 双击编辑图片
+        function handlerG(tag) {
+            const allData = labelData.filter(item => `qs_${item.id}` === tag.getAttribute('id'));
+            if (allData.length) {
+                const node = document.querySelectorAll(`#${tag.getAttribute('id')} .edit`);
+                for (let i in node) {
+                    node[i].style.display = "block";
+                    bindEvent(node,i);
+                }
+            }
+        };
+        // 编辑事件绑定
+        function bindEvent(node,i) {
+            const getClass = node[i].getAttribute('class');
+            
+        };
+        // 创矩形
+        function createRect(x, y, h, w) {
+            return {
+                width: w,
+                height: h,
+                x: x,
+                y: y,
+                style: `fill:rgb(239, 239, 239); stroke: #2c9c21; stroke-width: 1;`
+            }
+        };
+        // 创建节点
+        function createNewNode(id, w, h, x, y) {
+            const svg = createTag("svg", { xmlns: 'http://www.w3.org/2000/svg', width: "100%", height: "100%" })
+            const g = createTag("g", { id: `qs_${id}` });
+            const rect = createTag("rect", createRect( x, y, h, w));
+            // 左上
+            const rect_l_t = createTag("rect", { class: 'edit rect_l_t', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 });
+            // 左中
+            const rect_l_c = createTag("rect", { class: 'edit rect_l_c', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 + (h / 2) });
+            // 左下
+            const rect_l_b = createTag("rect", { class: 'edit rect_l_b', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 + h });
+            // 上中
+            const rect_t_c = createTag("rect", { class: 'edit rect_t_c', width: '8', height: '8', fill: 'red', x: x - 4 + (w / 2), y: y - 4 });
+            // 右上
+            const rect_t_r = createTag("rect", { class: 'edit rect_t_r', width: '8', height: '8', fill: 'red', x: x - 4 + w, y: y - 4 });
+            // 下中
+            const rect_b_c = createTag("rect", { class: 'edit rect_b_c', width: '8', height: '8', fill: 'red', x: x - 4 + (w / 2), y: y - 4 + h });
+            // 右下
+            const rect_r_b = createTag("rect", { class: 'edit rect_r_b', width: '8', height: '8', fill: 'red', x: x - 4 + w, y: y - 4 + h });
+            // 右中
+            const rect_r_c = createTag("rect", { class: 'edit rect_r_c', width: '8', height: '8', fill: 'red', x: x - 4 + w, y: y - 4 + (h / 2) });
+
+
+            svg_body.appendChild(svg);
+            svg.appendChild(g);
+            g.appendChild(rect);
+            g.appendChild(rect_l_t);
+            g.appendChild(rect_t_c);
+            g.appendChild(rect_t_r);
+            g.appendChild(rect_l_c);
+            g.appendChild(rect_l_b);
+            g.appendChild(rect_b_c);
+            g.appendChild(rect_r_b);
+            g.appendChild(rect_r_c);
+        };
+
+        // 创建虚拟svg DOM  id, w, h, x, y
+        function createElement(data) {
+            for (let item of data) {
+                createNewNode(item.id, item.width, item.height, item.x, item.y)
+            }
+        };
+
+        createElement(labelData);
+
     </script>
+
+
+    <!-- ========================================= -->
+    <!-- <div id="main"></div> -->
+
+    <!-- <script type="module">
+        // import AiLabel from "./js/label.js"; 
+        // function initMap() { 
+        //     AiLabel.initMap({ 
+        //         el: "#main", 
+        //         src: "./img/b.jpg"
+        //     }) 
+        // };
+        // initMap(); 
+
+
+        // window.dosave = (val) => { 
+        //     console.log(val); 
+        //     AiLabel.changeTools(val) 
+        // }; 
+        // window.changeStyle = (val) => {
+        //     AiLabel.setDraw("#fff")
+        // }
+    </script> -->
 
 </body>
 
