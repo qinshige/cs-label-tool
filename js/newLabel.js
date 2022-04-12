@@ -132,7 +132,6 @@ class AiLabel {
         foreignObject.appendChild(this.createNode(this.dom));
         g.appendChild(foreignObject);
         g.addEventListener("dblclick", () => {
-            this.editState = true;
             this.handlerG(g)
         });
     };
@@ -169,10 +168,12 @@ class AiLabel {
                 }
             }
             this.svg_body.onmouseup = () => {
+                if(this.editState) {
+                    return
+                } 
                 const { start_x, start_y, width, height } = this.drawWhenData;
                 this.startState = false;
                 this.updateAttribute(virtualNode, { x: 0, y: 0, width: 0, height: 0 });
-
                 this.labelData.push({
                     id: new Date().getTime(),
                     width,
@@ -257,6 +258,7 @@ class AiLabel {
     bindEvent(id, data) {
         const dom = document.querySelector(`#${id} .rect_r_b`);
         let flag = false;
+        this.editState = true;
         // 根据数据获取
         dom.onmousedown = (event) => {
             flag = true;
@@ -267,6 +269,7 @@ class AiLabel {
             }
             this.svg_body.onmouseup = () => {
                 flag = false;
+                this.editState = false;
             }
         }
     };
