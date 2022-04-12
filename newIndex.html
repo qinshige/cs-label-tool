@@ -4,14 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <title>绘制组件</title>
-    <meta name="viewport"
-        content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
     <style>
         * {
             padding: 0;
             margin: 0;
         }
-
+        
         .text {
             width: 100%;
             height: 100%;
@@ -20,17 +19,17 @@
             text-anchor: middle;
             dominant-baseline: middle;
         }
-
+        
         #polygon {
             /* transform: rotate(45deg); 
             transform-origin: 50% 50%; */
         }
-
+        
         #neirong {
             display: block;
             transition: all .2s;
         }
-
+        
         .tooltip-pen {
             position: fixed;
             width: 40px;
@@ -42,14 +41,13 @@
             background-color: rgba(255, 255, 255, 0);
             border-radius: 5px;
         }
-
+        
         #svg_body {
             width: 100%;
             height: 100%;
             position: absolute;
             margin: auto;
         }
-
         /* .edit {
             display: none;
             transition: all .2s;
@@ -67,30 +65,17 @@
             <input type="button" value="设置样式" onclick="changeStyle()" />
         </b>
     </div>
-    <!-- <div id="svg_body">
+    <div id="svg_body">
 
-    </div> -->
-    <div id="main"></div>
-
+    </div>
     <script type="module">
-        import AiLabel from "./js/label.js";
-        function initMap() {
-            AiLabel.initMap({
-                el: "#main",
-                src: "./img/b.jpg"
-            })
-        };
-        initMap();
+        import AiLabel from "./js/newLabel.js"; 
+        AiLabel.initMap({
+            el: "#svg_body"
+        })
 
-
-        window.dosave = (val) => {
-            console.log(val);
-            AiLabel.changeTools(val)
-        };
-        window.changeStyle = (val) => {
-            AiLabel.setDraw("#fff")
-        }
     </script>
+
 
 </body>
 

@@ -4,26 +4,55 @@
 <head>
     <meta charset="UTF-8">
     <title>绘制组件</title>
-    <meta name="viewport"
-        content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
     <style>
         * {
             padding: 0;
             margin: 0;
         }
+        
+        .text {
+            width: 100%;
+            height: 100%;
+            font-size: 8px;
+            cursor: pointer;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+        
+        #polygon {
+            /* transform: rotate(45deg); 
+            transform-origin: 50% 50%; */
+        }
+        
+        #neirong {
+            display: block;
+            transition: all .2s;
+        }
+        
         .tooltip-pen {
             position: fixed;
             width: 40px;
             height: 125px;
             top: 5%;
             left: 650px;
-            z-index: 999;
+            z-index: 1000;
             color: #1eff00;
             background-color: rgba(255, 255, 255, 0);
             border-radius: 5px;
         }
+        
+        #svg_body {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            margin: auto;
+        }
+        /* .edit {
+            display: none;
+            transition: all .2s;
+        } */
     </style>
-
 </head>
 
 <body>
@@ -31,33 +60,314 @@
         <b>
             <input type="button" value="铅笔" onclick="dosave('pen');" />
             <input type="button" value="橡皮檫" onclick="dosave('eraser');" />
-            <input type="button" value="橡皮檫" onclick="dosave('save');" />
-            <input type="button" value="橡皮檫" onclick="changeStyle()" />
+            <input type="button" value="Base64图片" onclick="dosave('save');" />
+            <input type="button" value="绘制矩形" onclick="dosave('rect');" />
+            <input type="button" value="设置样式" onclick="changeStyle()" />
         </b>
     </div>
-    <div id="main">
-        
+    <div id="svg_body">
+
     </div>
-    
-    <script type="module">
-        import AiLabel from "./js/label.js";
-        // 切换
-        function initMap() {
-            AiLabel.initMap({
-                el: "#main",
-                src: "./img/a.jpg",
-            })
-        }
-        initMap();
-        window.dosave = (val) => {
-            console.log(val)
-            AiLabel.changeTools(val)
+    <script>
+        const labelData = [{
+            id: new Date().getTime(),
+            width: 220,
+            height: 220,
+            x: 220,
+            y: 40,
+            style: {
+                fillStyle: 'rgb(239, 239, 239)',
+                stroke: '#2c9c21',
+                strokeWidth: 1
+            }
+        }, {
+            id: new Date().getTime() + 1,
+            width: 220,
+            height: 220,
+            x: 100,
+            y: 100,
+            style: {
+                fillStyle: 'rgb(239, 239, 239)',
+                stroke: '#2c9c21',
+                strokeWidth: 1
+            }
+        }, {
+            id: new Date().getTime() + 2,
+            width: 100,
+            height: 100,
+            x: 300,
+            y: 400,
+            style: {
+                fillStyle: 'rgb(239, 239, 239)',
+                stroke: '#2c9c21',
+                strokeWidth: 1
+            }
+        }, {
+            id: new Date().getTime() + 3,
+            width: 100,
+            height: 100,
+            x: 500,
+            y: 400,
+            style: {
+                fillStyle: 'rgb(239, 239, 239)',
+                stroke: '#2c9c21',
+                strokeWidth: 1
+            }
+        }];
+        // 字符串转Dom
+        const dom = "<select><option value='标签名称1'>标签名称1</option><option value='saab'>Saab</option><option value='opel'>Opel</option><option value='audi'>Audi</option></select>";
+
+        function createNode(dom) {
+            const template = dom;
+            let tempNode = document.createElement('div');
+            tempNode.innerHTML = template;
+            return tempNode.firstChild;
         }
 
-        window.changeStyle = (val) => {
-            AiLabel.setDraw("#fff")
+
+        // 创建标签
+        function createTag(tag, objAttr) {
+            var svgNS = 'http://www.w3.org/2000/svg';
+            var oTag = document.createElementNS(svgNS, tag);
+            if (tag === 'g') {
+                oTag.setAttribute('ondblclick', `handlerG(${objAttr['id']})`);
+            }
+            for (let attr in objAttr) {
+                oTag.setAttribute(attr, objAttr[attr]);
+            }
+            return oTag;
+        };
+
+        // 清除编辑节点
+        function clearEditNode() {
+            const node = document.querySelectorAll(`.edit`);
+            if (node.length) {
+                for (let i = 0; i < node.length; i++) {
+                    node[i].style.display = "none"
+                }
+            }
+        };
+
+        // 展示编辑节点
+        function showEditNode(id) {
+            const g = document.querySelector(`#${id}`);
+            const node = document.querySelectorAll(`#${id} .edit`);
+            for (let i = 0; i < node.length; i++) {
+                node[i].style.display = "block";
+            }
+        };
+
+        // 创矩形
+        function createRect(x, y, h, w) {
+            return {
+                width: w,
+                height: h,
+                x: x,
+                y: y,
+                style: `fill:rgb(239, 239, 239);fill-opacity: 0.1; stroke: #2c9c21; stroke-width: 1;`
+            }
+        };
+        const svg = createTag("svg", {
+            version: "1.1",
+            xmlns: 'http://www.w3.org/2000/svg',
+            baseProfile: "full",
+            width: "100%",
+            height: "100%"
+        })
+        svg_body.appendChild(svg);
+
+        function createEditNode(g, w, h, x, y) {
+            // 左上
+            // const rect_l_t = createTag("rect", { class: 'edit rect_l_t', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4, style: "cursor: nw-resize;" });
+            // 左中
+            // const rect_l_c = createTag("rect", { class: 'edit rect_l_c', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 + (h / 2), style: "cursor: ew-resize;" });
+            // 左下
+            // const rect_l_b = createTag("rect", { class: 'edit rect_l_b', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 + h, style: "cursor: sw-resize;" });
+            // 上中
+            // const rect_t_c = createTag("rect", { class: 'edit rect_t_c', width: '8', height: '8', fill: 'red', x: x - 4 + (w / 2), y: y - 4, style: "cursor: n-resize" });
+            // 右上
+            const rect_r_t = createTag("rect", {
+                class: 'edit rect_r_t',
+                width: '8',
+                height: '8',
+                fill: 'red',
+                x: x - 4 + w,
+                y: y - 4,
+                style: "cursor: ne-resize;"
+            });
+            // 下中
+            // const rect_b_c = createTag("rect", { class: 'edit rect_b_c', width: '8', height: '8', fill: 'red', x: x - 4 + (w / 2), y: y - 4 + h, style: "cursor: s-resize;" });
+            // 右下
+            const rect_r_b = createTag("rect", {
+                class: 'edit rect_r_b',
+                width: '8',
+                height: '8',
+                fill: 'red',
+                x: x - 4 + w,
+                y: y - 4 + h,
+                style: "cursor: se-resize;"
+            });
+            // 右中
+            // const rect_r_c = createTag("rect", { class: 'edit rect_r_c', width: '8', height: '8', fill: 'red', x: x - 4 + w, y: y - 4 + (h / 2), style: "cursor: ew-resize;" });
+            // g.appendChild(rect_l_t);
+            // g.appendChild(rect_t_c);
+            g.appendChild(rect_r_t);
+
+            // g.appendChild(rect_l_c);
+            // g.appendChild(rect_l_b);
+            // g.appendChild(rect_b_c);
+            g.appendChild(rect_r_b);
+            const foreignObject = createTag("foreignObject", {
+                class: `foreignObject`,
+                height: 22,
+                width: w - 8,
+                x,
+                y: y - 4 + h,
+            });
+            foreignObject.appendChild(createNode(dom));
+            g.appendChild(foreignObject);
+            // g.appendChild(rect_r_c);
+        };
+        // 创建节点
+        function createNewNode(id, w, h, x, y) {
+            const g = createTag("g", {
+                id: `qs_${id}`,
+                width: "100%",
+                height: "100%"
+            });
+            const rect = createTag("rect", createRect(x, y, h, w));
+            rect.setAttribute("class", "rect");
+            svg.appendChild(g);
+            g.appendChild(rect);
+            createEditNode(g, w, h, x, y);
+        };
+
+        // 设置属性
+        function updateAttribute(tag, objAttr) {
+            for (let attr in objAttr) {
+                tag.setAttribute(attr, objAttr[attr]);
+            }
         }
+
+        // 存储标注下数据
+        const rectNode = ['rect_r_t', 'rect_r_b'];
+
+        // 更新Dom 坐标
+        function updateDom(id, e, data) {
+            const {
+                width,
+                height,
+                x,
+                y
+            } = data;
+            const ract = document.querySelector(`#${id} .rect`);
+            const coordinate = {
+                x: Math.abs(e.clientX),
+                y: Math.abs(e.clientY),
+                width: Math.abs(width + (x - e.clientX)),
+                height: Math.abs(height + (y - e.clientY))
+            };
+            // 判断 当前所方式是否小于
+            if (width + (e.clientX - (width + x)) < width / 2 || height + (e.clientY - (height + y)) < height / 2) {
+                return
+            };
+
+            updateAttribute(ract, {
+                x,
+                y,
+                width: width + (e.clientX - (width + x)),
+                height: height + (e.clientY - (height + y))
+            });
+            const rect_r_t = document.querySelector(`#${id} .rect_r_t`);
+            updateAttribute(rect_r_t, {
+                x: width + (e.clientX - width) - 4,
+                y: y - 4
+            });
+
+            const rect_r_b = document.querySelector(`#${id} .rect_r_b`);
+            updateAttribute(rect_r_b, {
+                x: width + (e.clientX - width) - 4,
+                y: height + (e.clientY - height) - 4
+            });
+
+            const foreignObject = document.querySelector(`#${id} .foreignObject`);
+            updateAttribute(foreignObject, {
+                x,
+                y: height + (e.clientY - height) - 4
+            });
+        };
+
+        // 双击编辑图片
+        async function handlerG(tag) {
+            const allData = labelData.filter(item => `qs_${item.id}` === tag.getAttribute('id'));
+            tag.parentNode.removeChild(tag);
+            svg.appendChild(tag);
+            if (allData.length) {
+                await clearEditNode();
+                await showEditNode(`qs_${allData[0].id}`);
+                await bindEvent(`qs_${allData[0].id}`, allData[0]);
+            }
+        };
+
+        // 编辑事件绑定
+        function bindEvent(id, data) {
+            const dom = document.querySelector(`#${id} .rect_r_b`);
+            const {
+                width,
+                height,
+                x,
+                y
+            } = data;
+            let flag = false;
+            // 根据数据获取
+            dom.onmousedown = (event) => {
+                console.log("鼠标按下");
+                flag = true;
+                svg_body.onmousemove = (e) => {
+                    if (flag) {
+                        updateDom(id, e, data);
+                    }
+                    // createElement();
+                }
+                svg_body.onmouseup = () => {
+                    flag = false;
+                }
+            }
+        };
+        // 创建虚拟svg DOM  id, w, h, x, y
+        function createElement(data) {
+            for (let item of data) {
+                createNewNode(item.id, item.width, item.height, item.x, item.y)
+                clearEditNode();
+            }
+        };
+
+        createElement(labelData);
     </script>
+
+
+    <!-- ========================================= -->
+    <!-- <div id="main"></div> -->
+
+    <!-- <script type="module">
+        // import AiLabel from "./js/label.js"; 
+        // function initMap() { 
+        //     AiLabel.initMap({ 
+        //         el: "#main", 
+        //         src: "./img/b.jpg"
+        //     }) 
+        // };
+        // initMap(); 
+
+
+        // window.dosave = (val) => { 
+        //     console.log(val); 
+        //     AiLabel.changeTools(val) 
+        // }; 
+        // window.changeStyle = (val) => {
+        //     AiLabel.setDraw("#fff")
+        // }
+    </script> -->
 
 </body>
 
