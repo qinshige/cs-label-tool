@@ -1,6 +1,28 @@
 class AiLabel {
     startState = false; // 开始标注状态
-    labelData = [];
+    labelData = [{
+        id: new Date().getTime(),
+        width: 100,
+        height: 100,
+        x: 100,
+        y: 100,
+        style: {
+            fillStyle: 'rgb(239, 239, 239)',
+            stroke: '#2c9c21',
+            strokeWidth: 1
+        }
+    }, {
+        id: new Date().getTime() + 1,
+        width: 100,
+        height: 100,
+        x: 300,
+        y: 300,
+        style: {
+            fillStyle: 'rgb(239, 239, 239)',
+            stroke: '#2c9c21',
+            strokeWidth: 1
+        }
+    }];
     svg_body = null;
     svg = null;
     // 字符串转Dom
@@ -15,7 +37,10 @@ class AiLabel {
     };
     editState = false; // 编辑状态
 
-  
+    presentNode = null;  // 当前id
+
+    downBtn = null;
+
     // 初始化
     createRectLabel(config) {
         this.svg = this.createTag("svg", {
@@ -24,12 +49,18 @@ class AiLabel {
             baseProfile: "full",
             width: "100%",
             height: "100%"
-        })
+        });
         this.svg_body = document.querySelector(`#${config}`);
         this.svg_body.appendChild(this.svg);
         const virtualNode = this.createTag("rect", this.createRect(0, 0, 0, 0));
         virtualNode.setAttribute("id", "virtualNode");
         this.svg.appendChild(virtualNode);
+        this.createElement(this.labelData);
+        this.svg_body.addEventListener("click", (e) => {
+            this.startState = false;
+            this.clearEditNode();
+        })
+        this.drawRectMain();
     }
 
     createNode(dom) {
@@ -38,7 +69,6 @@ class AiLabel {
         tempNode.innerHTML = template;
         return tempNode.firstChild;
     }
-
 
     // 创建标签
     createTag(tag, objAttr) {
@@ -57,15 +87,22 @@ class AiLabel {
             for (let i = 0; i < node.length; i++) {
                 node[i].style.display = "none"
             }
+            const rect = document.querySelectorAll(`.rect`);
+            for (let i = 0; i < rect.length; i++) {
+                rect[i].style.cursor = "default"
+            }
         }
     };
 
     // 展示编辑节点
     showEditNode(id) {
-
-        const node = document.querySelectorAll(`#${id} .edit`);
-        for (let i = 0; i < node.length; i++) {
-            node[i].style.display = "block";
+        const edit = document.querySelectorAll(`#${id} .edit`);
+        for (let i = 0; i < edit.length; i++) {
+            edit[i].style.display = "block";
+        }
+        const rect = document.querySelectorAll(`#${id} .rect`);
+        for (let i = 0; i < rect.length; i++) {
+            rect[i].style.cursor = "move"
         }
     };
 
@@ -80,16 +117,8 @@ class AiLabel {
         }
     };
 
-
+    // 创建编辑标签
     createEditNode(g, w, h, x, y) {
-        // 左上
-        // const rect_l_t = createTag("rect", { class: 'edit rect_l_t', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4, style: "cursor: nw-resize;" });
-        // 左中
-        // const rect_l_c = createTag("rect", { class: 'edit rect_l_c', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 + (h / 2), style: "cursor: ew-resize;" });
-        // 左下
-        // const rect_l_b = createTag("rect", { class: 'edit rect_l_b', width: '8', height: '8', fill: 'red', x: x - 4, y: y - 4 + h, style: "cursor: sw-resize;" });
-        // 上中
-        // const rect_t_c = createTag("rect", { class: 'edit rect_t_c', width: '8', height: '8', fill: 'red', x: x - 4 + (w / 2), y: y - 4, style: "cursor: n-resize" });
         // 右上
         const rect_r_t = this.createTag("rect", {
             class: 'edit rect_r_t',
@@ -100,8 +129,6 @@ class AiLabel {
             y: y - 4,
             style: "cursor: ne-resize;"
         });
-        // 下中
-        // const rect_b_c = createTag("rect", { class: 'edit rect_b_c', width: '8', height: '8', fill: 'red', x: x - 4 + (w / 2), y: y - 4 + h, style: "cursor: s-resize;" });
         // 右下
         const rect_r_b = this.createTag("rect", {
             class: 'edit rect_r_b',
@@ -112,15 +139,7 @@ class AiLabel {
             y: y - 4 + h,
             style: "cursor: se-resize;"
         });
-        // 右中
-        // const rect_r_c = createTag("rect", { class: 'edit rect_r_c', width: '8', height: '8', fill: 'red', x: x - 4 + w, y: y - 4 + (h / 2), style: "cursor: ew-resize;" });
-        // g.appendChild(rect_l_t);
-        // g.appendChild(rect_t_c);
         g.appendChild(rect_r_t);
-
-        // g.appendChild(rect_l_c);
-        // g.appendChild(rect_l_b);
-        // g.appendChild(rect_b_c);
         g.appendChild(rect_r_b);
         const foreignObject = this.createTag("foreignObject", {
             class: `foreignObject`,
@@ -131,8 +150,14 @@ class AiLabel {
         });
         foreignObject.appendChild(this.createNode(this.dom));
         g.appendChild(foreignObject);
-        g.addEventListener("dblclick", () => {
-            this.handlerG(g)
+        g.oncontextmenu = (e) => {
+            e.preventDefault();
+        };
+        g.addEventListener("mousedown", (e) => {
+            if (e.button == 2) {
+                this.handlerG(g)
+            }
+            e.stopPropagation();
         });
     };
     // 创建节点
@@ -148,33 +173,50 @@ class AiLabel {
         g.appendChild(rect);
         this.createEditNode(g, w, h, x, y);
     };
+
     // 绘制矩形
     drawRectMain() {
         const virtualNode = document.querySelector(`#virtualNode`);
-        this.svg_body.onmousedown = (event) => {
-            if(this.editState) {
-                return
-            } 
-            this.svg.style.cursor = "crosshair";
-            this.drawWhenData.start_x = event.offsetX;
-            this.drawWhenData.start_y = event.offsetY;
-            this.updateAttribute(virtualNode, { x: this.drawWhenData.start_x, y: this.drawWhenData.start_y });
-            this.startState = true;
-            this.svg_body.onmousemove = (event) => {
-                if (this.startState) {
-                    this.drawWhenData.width = event.offsetX - this.drawWhenData.start_x;
-                    this.drawWhenData.height = event.offsetY - this.drawWhenData.start_y;
-                    this.updateAttribute(virtualNode, { width: event.offsetX - this.drawWhenData.start_x, height: event.offsetY - this.drawWhenData.start_y });
-                }
+        this.addEventListenerFn(this.svg, "mousedown", (event) => {
+            this.downBtn = event.button;
+            if (event.button === 0) {
+                console.log(event);
+                this.svg.style.cursor = "crosshair";
+                this.drawWhenData.start_x = event.offsetX;
+                this.drawWhenData.start_y = event.offsetY;
+                this.updateAttribute(virtualNode, { x: this.drawWhenData.start_x, y: this.drawWhenData.start_y });
+                this.startState = true;
+            } else if (e.button == 2) {
+                this.handlerG(g)
+
             }
-            this.svg_body.onmouseup = () => {
-                if(this.editState) {
-                    return
-                } 
+        })
+        this.addEventListenerFn(this.svg, "mousemove", (event) => {
+            if (this.startState && event.button === 0) {
+                this.drawWhenData.width = event.offsetX - this.drawWhenData.start_x;
+                this.drawWhenData.height = event.offsetY - this.drawWhenData.start_y;
+                this.updateAttribute(virtualNode, { width: event.offsetX - this.drawWhenData.start_x, height: event.offsetY - this.drawWhenData.start_y });
+            }
+        });
+
+        this.addEventListenerFn(this.svg, "mouseup", (event) => {
+            if (this.downBtn === 0) {
                 const { start_x, start_y, width, height } = this.drawWhenData;
-                this.startState = false;
                 this.updateAttribute(virtualNode, { x: 0, y: 0, width: 0, height: 0 });
-                this.labelData.push({
+                this.startState = false;
+                // this.labelData.push({
+                //     id: new Date().getTime(),
+                //     width,
+                //     height,
+                //     x: start_x,
+                //     y: start_y,
+                //     style: {
+                //         fillStyle: 'rgb(239, 239, 239)',
+                //         stroke: '#2c9c21',
+                //         strokeWidth: 1
+                //     }
+                // });
+                this.readerNode({
                     id: new Date().getTime(),
                     width,
                     height,
@@ -186,11 +228,9 @@ class AiLabel {
                         strokeWidth: 1
                     }
                 });
-                this.createElement(this.labelData);
-            };
-            // onmouseleave事件
-            this.svg_body.onmouseleave = () => { }
-        };
+            }
+            this.downBtn = -1;
+        })
     };
 
     // 设置属性
@@ -244,15 +284,28 @@ class AiLabel {
     // 双击编辑图片
     handlerG(tag) {
         const allData = this.labelData.filter(item => `qs_${item.id}` === tag.getAttribute('id'));
-        console.log(allData);
         tag.parentNode.removeChild(tag);
         this.svg.appendChild(tag);
         if (allData.length) {
+            this.presentNode = `qs_${allData[0].id}`;
             this.clearEditNode();
             this.showEditNode(`qs_${allData[0].id}`);
             this.bindEvent(`qs_${allData[0].id}`, allData[0]);
         }
     };
+
+    // 删除事件
+    removeEventListenerFn(node, event) {
+        node.removeEventListener(event, () => {
+            event.preventDefault();
+        }, false);
+    };
+
+    addEventListenerFn(node, event, callback) {
+        node.addEventListener(event, (e) => {
+            callback(e)
+        }, false);
+    }
 
     // 编辑事件绑定
     bindEvent(id, data) {
@@ -262,24 +315,37 @@ class AiLabel {
         // 根据数据获取
         dom.onmousedown = (event) => {
             flag = true;
-            this.svg_body.onmousemove = (e) => {
+            this.svg_body.addEventListener("mousemove", (e) => {
                 if (flag) {
                     this.updateDom(id, e, data);
+                } else {
+                    this.removeEventListenerFn(this.svg_body, "mousemove");
                 }
-            }
-            this.svg_body.onmouseup = () => {
+            })
+            this.svg_body.addEventListener("mouseup", () => {
                 flag = false;
                 this.editState = false;
-            }
+            })
         }
     };
+
     // 创建虚拟svg DOM  id, w, h, x, y
-    createElement(data) {
-        for (let item of data) {
+    createElement() {
+        for (const item of this.labelData) {
             this.createNewNode(item.id, item.width, item.height, item.x, item.y)
             this.clearEditNode();
         }
     };
+
+
+    // reader
+    readerNode(item) {
+        this.createNewNode(item.id, item.width, item.height, item.x, item.y)
+        this.clearEditNode();
+        // this.labelData.push({
+
+        // });
+    }
 }
 
 

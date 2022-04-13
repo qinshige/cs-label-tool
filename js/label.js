@@ -129,7 +129,7 @@ class AiLabel {
 				// this.drawRectMain();
 
 
-				newAiLabel.drawRectMain();
+				// newAiLabel.drawRectMain();
 				break;
 		};
 	};
