@@ -293,6 +293,7 @@ class RectLibrary {
             this.clearEditNode();
             this.showEditNode(`qs_${allData[0].id}`);
             this.bindEvent(`qs_${allData[0].id}`, allData[0]);
+            this.dragHandler(`qs_${allData[0].id}`, allData[0]);
         }
     };
 
@@ -307,11 +308,31 @@ class RectLibrary {
         node.addEventListener(event, (e) => {
             callback(e)
         }, false);
-    }
+    };
 
-    // 移动改变
-    dragHandler() {
-        const customDom = document.querySelector(`#${id}`);
+    // 拖拽
+    dragHandler(id, data) {
+        const {
+            x,
+            y
+        } = data;
+        const svg = document.querySelector(`#${id}`);
+        const rect = document.querySelector(`#${id} .rect`);
+        let flag = false;
+
+        this.addEventListenerFn(rect, 'mousedown', (e) => {
+            flag = true;
+            this.addEventListenerFn(this.svg_body, 'mousemove', (e) => {
+                if(flag) {
+                    const sx = x;
+                    const sy = y;
+                    this.updateAttribute(svg,{x: sx, y: sy});
+                }
+            })
+            this.addEventListenerFn(this.svg_body, "mouseup", (e) => {
+                flag = false;
+            })
+        })
     }
 
     // 编辑事件绑定
