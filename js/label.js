@@ -1,5 +1,5 @@
-import newAiLabel from "./newLabel.js";
-class AiLabel {
+import RectLibrary from "./rectLibrary.js";
+class LabelLibrary {
 	main; // 祖父级别
 	canvasMain; // cnavas 主体
 	canvas1; // 底图 cnavas1
@@ -20,22 +20,10 @@ class AiLabel {
 		height: 0
 	};
 	keyCode; // 键盘Code
-	rect_tag = null;
-	// rectData = {
-	// 	startX: 0,
-	// 	startY: 0,
-	// 	endX: 0,
-	// 	endY: 0,
-	// 	layerIndex: 0,
-	// 	layerName: "",
-	// 	startState: false
-	// };
-   
 
 	// 设置缩放比例
 	setScale() {
-		// this.canvas1.style.transform = `scale(${this.scale})`;
-		// this.canvas2.style.transform = `scale(${this.scale})`;
+		RectLibrary.scale = this.scale;
 		this.canvasMain.style.transform = `scale(${this.scale})`;
 	};
 
@@ -51,19 +39,6 @@ class AiLabel {
 			this.imgInof = image;
 			this.addStyle(config);
 			this.cs1Ctx = this.appendChild(this.canvas1, image);
-			this.mode = "rect";
-			switch (this.mode) {
-				case "rect":
-					const div = document.createElement("div");
-					div.setAttribute("style", "position: absolute; z-index: 999; background-color: transparent;");
-					div.setAttribute("id", "svg_body");
-					this.canvasMain.appendChild(div);
-					newAiLabel.createRectLabel("svg_body");
-					break;
-				default:
-					this.cs2Ctx = this.appendChild(this.canvas2, image);
-					break;
-			}
 			this.dragHandler();
 			this.main.onmousewheel = (e) => {
 				this.onMouseScroll(e);
@@ -71,7 +46,7 @@ class AiLabel {
 			}
 		}
 	};
- 
+
 	// 创建标签
 	createElement(config) {
 		this.main = document.querySelector(config.el);
@@ -84,7 +59,7 @@ class AiLabel {
 	addStyle(config) {
 		this.main.setAttribute("style", `position: absolute; width: 100%; height: 100%;`);
 		this.canvasMain.setAttribute("style", `position: absolute; width: ${this.imgInof.width}px; height: ${this.imgInof.height}px; `);
-		this.canvasMain.setAttribute("id","qs_main");
+		this.canvasMain.setAttribute("id", "qs_main");
 		this.canvas1.setAttribute("style", `position: absolute; z-index: 997; background-image: url('${config.src}');transition: all 0.1s;`);
 		this.canvas2.setAttribute("style", "position: absolute; z-index: 999; background-color: transparent;transition: all 0.1s;");
 	};
@@ -101,6 +76,30 @@ class AiLabel {
 	reactiveLineWidth() {
 		this.lineWidth = this.defaultLineWidth / this.scale;
 	};
+
+	// 矩形标注
+	rectLabel() {
+		const div = document.createElement("div");
+		div.setAttribute("style", "position: absolute;width: 100%; height:100%; z-index: 999; background-color: transparent;");
+		div.setAttribute("id", "rect_body");
+		this.canvasMain.appendChild(div);
+		RectLibrary.createRectLabel("rect_body");
+		RectLibrary.drawRectMain({
+			id: "rect",
+			customDom: "<select><option value='标签名称1'>标签名称1</option><option value='saab'>Saab</option><option value='opel'>Opel</option><option value='audi'>Audi</option></select>",
+			style: {
+				fillStyle: 'rgb(239, 239, 239)',
+				stroke: '#000',
+				strokeWidth: 1
+			}
+		});
+	}
+
+	// 涂抹标注
+	maskLabel() {
+
+	}
+
 
 	// 切换工具
 	changeTools(tname) {
@@ -123,13 +122,7 @@ class AiLabel {
 				this.downloadImg();
 				break;
 			case "rect":
-				// this.canvas2.style.cursor = "crosshair";
-				// this.cs2Ctx.lineWidth = 2 / this.scale;
-				// this.cs2Ctx.strokeStyle = "red";
-				// this.drawRectMain();
-
-
-				// newAiLabel.drawRectMain();
+				this.rectLabel();
 				break;
 		};
 	};
@@ -150,51 +143,52 @@ class AiLabel {
 			this.setScale();
 		}
 	};
-	drawRect() {
-		const { startState } = this.rectData;
-		if (startState) {
-			this.cs2Ctx.clearRect(0, 0, this.canvas2.width, this.canvas2.height);
-			const ract = {
-				x: this.rectData.startX,
-				y: this.rectData.startY,
-				width: this.rectData.endX - this.rectData.startX,
-				height: this.rectData.endY - this.rectData.startY
-			}
-			this.getRectData.push(ract);
-			this.rectData.startState = false;
-			this.continuousDrawRact();
-			this.cs2Ctx.closePath();
-		}
-	};
+	// drawRect() {
+	// 	const { startState } = this.rectData;
+	// 	if (startState) {
+	// 		this.cs2Ctx.clearRect(0, 0, this.canvas2.width, this.canvas2.height);
+	// 		const ract = {
+	// 			x: this.rectData.startX,
+	// 			y: this.rectData.startY,
+	// 			width: this.rectData.endX - this.rectData.startX,
+	// 			height: this.rectData.endY - this.rectData.startY
+	// 		}
+	// 		this.getRectData.push(ract);
+	// 		this.rectData.startState = false;
+	// 		this.continuousDrawRact();
+	// 		this.cs2Ctx.closePath();
+	// 	}
+	// };
 	// 绘制矩形
-	drawRectMain() {
-		this.canvas2.onmousedown = (event) => {
-			this.rectData.startX = event.offsetX;
-			this.rectData.startY = event.offsetY;
-			this.rectData.startState = true;
-			this.canvas2.onmousemove = (event) => {
-				const { startState } = this.rectData;
-				if (startState) {
-					this.cs2Ctx.clearRect(0, 0, this.canvas2.width, this.canvas2.height);
-					this.rectData.endX = event.offsetX;
-					this.rectData.endY = event.offsetY;
-					this.cs2Ctx.beginPath();
-					this.cs2Ctx.moveTo(event.offsetX, event.offsetY);
-					this.cs2Ctx.strokeRect(this.rectData.startX, this.rectData.startY, this.rectData.endX - this.rectData.startX, this.rectData.endY - this.rectData.startY);
-					this.continuousDrawRact();
-				}
-			}
-		}
-		this.canvas2.onmouseup = () => { this.drawRect(); };
-		// onmouseleave事件
-		this.canvas2.onmouseleave = () => { this.drawRect(); }
-	};
+
+	// drawRectMain() {
+	// 	this.canvas2.onmousedown = (event) => {
+	// 		this.rectData.startX = event.offsetX;
+	// 		this.rectData.startY = event.offsetY;
+	// 		this.rectData.startState = true;
+	// 		this.canvas2.onmousemove = (event) => {
+	// 			const { startState } = this.rectData;
+	// 			if (startState) {
+	// 				this.cs2Ctx.clearRect(0, 0, this.canvas2.width, this.canvas2.height);
+	// 				this.rectData.endX = event.offsetX;
+	// 				this.rectData.endY = event.offsetY;
+	// 				this.cs2Ctx.beginPath();
+	// 				this.cs2Ctx.moveTo(event.offsetX, event.offsetY);
+	// 				this.cs2Ctx.strokeRect(this.rectData.startX, this.rectData.startY, this.rectData.endX - this.rectData.startX, this.rectData.endY - this.rectData.startY);
+	// 				this.continuousDrawRact();
+	// 			}
+	// 		}
+	// 	}
+	// 	this.canvas2.onmouseup = () => { this.drawRect(); };
+	// 	// onmouseleave事件
+	// 	this.canvas2.onmouseleave = () => { this.drawRect(); }
+	// };
 	// 连续绘制
-	continuousDrawRact() {
-		for (let item of this.getRectData) {
-			this.cs2Ctx.strokeRect(item.x, item.y, item.width, item.height);
-		}
-	};
+	// continuousDrawRact() {
+	// 	for (let item of this.getRectData) {
+	// 		this.cs2Ctx.strokeRect(item.x, item.y, item.width, item.height);
+	// 	}
+	// };
 
 	// 涂抹橡皮擦
 	drawMasker() {
@@ -279,4 +273,4 @@ class AiLabel {
 		console.log(imgSrc);
 	}
 }
-export default new AiLabel();
+export default new LabelLibrary();

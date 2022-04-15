@@ -1,4 +1,4 @@
-class AiLabel {
+class RectLibrary {
     startState = false; // 开始标注状态
     labelData = [{
         id: new Date().getTime(),
@@ -26,7 +26,7 @@ class AiLabel {
     svg_body = null;
     svg = null;
     // 字符串转Dom
-    dom = "<select><option value='标签名称1'>标签名称1</option><option value='saab'>Saab</option><option value='opel'>Opel</option><option value='audi'>Audi</option></select>";
+    customDom = "<select><option value='标签名称1'>标签名称1</option><option value='saab'>Saab</option><option value='opel'>Opel</option><option value='audi'>Audi</option></select>";
     virtualNode = null; // 虚拟节点
     // 存放绘制时的数据
     drawWhenData = {
@@ -41,6 +41,8 @@ class AiLabel {
 
     downBtn = null;
 
+    scale = 1;
+
     // 初始化
     createRectLabel(config) {
         this.svg = this.createTag("svg", {
@@ -54,13 +56,12 @@ class AiLabel {
         this.svg_body.appendChild(this.svg);
         const virtualNode = this.createTag("rect", { id: "virtualNode", x: "0", y: "0", width: "0", height: "0", style: "fill:rgb(239, 239, 239);fill-opacity: 0.1; stroke: #2c9c21; stroke-width: 1;" });
         this.svg.appendChild(virtualNode);
-        this.createElement(this.labelData);
-
-        this.drawRectMain();
+        console.log(config);
+        // this.createElement(this.labelData);
     }
 
-    createNode(dom) {
-        const template = dom;
+    createNode(customDom) {
+        const template = customDom;
         let tempNode = document.createElement('div');
         tempNode.innerHTML = template;
         return tempNode.firstChild;
@@ -145,7 +146,7 @@ class AiLabel {
             y: y - 4 + h,
         });
         g.appendChild(foreignObject);
-        foreignObject.appendChild(this.createNode(this.dom));
+        foreignObject.appendChild(this.createNode(this.customDom));
         g.oncontextmenu = (e) => {
             e.preventDefault();
         };
@@ -169,11 +170,11 @@ class AiLabel {
         g.appendChild(rect);
         this.createEditNode(g, w, h, x, y);
         this.clearEditNode();
-
     };
 
-    // 绘制矩形
-    drawRectMain() {
+    // 绘制矩形 parames
+    drawRectMain(parames) {
+        this.customDom = parames.customDom;
         const virtualNode = document.querySelector(`#virtualNode`);
         this.addEventListenerFn(this.svg, "click", () => {
             this.startState = false;
@@ -181,8 +182,7 @@ class AiLabel {
             this.clearEditNode();
         });
         this.addEventListenerFn(this.svg, "mousedown", (event) => {
-            if (event.button === 0) {
-                this.downBtn = event.button;
+            if (event.button === 0 && !this.startState) {
                 this.svg.style.cursor = "crosshair";
                 this.drawWhenData.start_x = event.offsetX;
                 this.drawWhenData.start_y = event.offsetY;
@@ -199,26 +199,25 @@ class AiLabel {
         });
 
         this.addEventListenerFn(this.svg, "mouseup", (event) => {
-            if (this.startState && this.downBtn === 0) {
+            if (this.startState && event.button === 0) {
                 const { start_x, start_y, width, height } = this.drawWhenData;
                 this.updateAttribute(virtualNode, { x: 0, y: 0, width: 0, height: 0 });
                 this.startState = false;
                 const newData = {
-                    id: new Date().getTime(),
+                    id: `${parames.id}` + new Date().getTime(),
                     width,
                     height,
                     x: start_x,
                     y: start_y,
-                    style: {
-                        fillStyle: 'rgb(239, 239, 239)',
-                        stroke: '#2c9c21',
-                        strokeWidth: 1
-                    }
+                    style: parames.style
                 }
-                this.labelData.push(newData);
-                this.readerNode(newData);
+                if (this.drawWhenData.width >= 1 && this.drawWhenData.height >= 1) {
+                    this.labelData.push(newData);
+                    this.readerNode(newData);
+                }
+                this.drawWhenData.width = 0;
+                this.drawWhenData.height = 0;
             }
-            this.downBtn = -1;
         })
     };
 
@@ -232,11 +231,17 @@ class AiLabel {
     // 更新Dom 坐标
     updateDom(id, e, data) {
         const {
-            width,
-            height,
             x,
             y
         } = data;
+        var width, height;
+        if (this.scale > 1) {
+            width = parseInt(data.width * this.scale);
+            height = parseInt(data.height * this.scale);
+        } else {
+            width = parseInt(data.width / this.scale);
+            height = parseInt(data.height / this.scale);
+        }
         const ract = document.querySelector(`#${id} .rect`);
         // 判断 当前所方式是否小于
         if (width + (e.clientX - (width + x)) < width / 2 || height + (e.clientY - (height + y)) < height / 2) {
@@ -304,19 +309,22 @@ class AiLabel {
         }, false);
     }
 
+    // 移动改变
+    dragHandler() {
+        const customDom = document.querySelector(`#${id}`);
+    }
+
     // 编辑事件绑定
     bindEvent(id, data) {
-        const dom = document.querySelector(`#${id} .rect_r_b`);
+        const customDom = document.querySelector(`#${id} .rect_r_b`);
         let flag = false;
         this.editState = true;
         let btn = 0;
         // 根据数据获取
-        dom.onmousedown = (event) => {
+        customDom.onmousedown = (event) => {
             flag = true;
-            btn = event.button;
-            console.log(event);
             this.svg_body.addEventListener("mousemove", (e) => {
-                if (flag && btn === 0) {
+                if (flag && event.button === 0) {
                     this.updateDom(id, e, data);
                 } else {
                     this.removeEventListenerFn(this.svg_body, "mousemove");
@@ -330,7 +338,7 @@ class AiLabel {
         }
     };
 
-    // 创建虚拟svg DOM  id, w, h, x, y
+    // 创建虚拟
     createElement() {
         for (const item of this.labelData) {
             this.createNewNode(item.id, item.width, item.height, item.x, item.y)
@@ -340,10 +348,10 @@ class AiLabel {
 
 
     // reader
-    async readerNode(item) {
+    readerNode(item) {
         this.createNewNode(item.id, item.width, item.height, item.x, item.y)
     }
 }
 
 
-export default new AiLabel();
+export default new RectLibrary();

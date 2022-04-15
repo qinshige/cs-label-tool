@@ -67,28 +67,24 @@
             <input type="button" value="设置样式" onclick="changeStyle()" />
         </b>
     </div>
-    <!-- <div id="svg_body">
-
-    </div> -->
     <div id="main"></div>
 
     <script type="module">
-        import AiLabel from "./js/label.js";
+        import LabelLibrary from "./js/label.js";
         function initMap() {
-            AiLabel.initMap({
+            LabelLibrary.initMap({
                 el: "#main",
                 src: "./img/b.jpg"
             })
         };
         initMap();
 
-
         window.dosave = (val) => {
             console.log(val);
-            AiLabel.changeTools(val)
+            LabelLibrary.changeTools(val)
         };
         window.changeStyle = (val) => {
-            AiLabel.setDraw("#fff")
+            LabelLibrary.setDraw("#fff")
         }
     </script>
 
