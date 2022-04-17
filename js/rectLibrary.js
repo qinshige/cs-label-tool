@@ -236,11 +236,11 @@ class RectLibrary {
         } = data;
         var width, height;
         if (this.scale > 1) {
-            width = parseInt(data.width * this.scale);
-            height = parseInt(data.height * this.scale);
+            width = data.width * this.scale;
+            height = data.height * this.scale;
         } else {
-            width = parseInt(data.width / this.scale);
-            height = parseInt(data.height / this.scale);
+            width = data.width / this.scale;
+            height = data.height / this.scale;
         }
         const ract = document.querySelector(`#${id} .rect`);
         // 判断 当前所方式是否小于
@@ -316,21 +316,27 @@ class RectLibrary {
             x,
             y
         } = data;
+        var width = data.width * this.scale;
+        var height = data.height * this.scale;
         const svg = document.querySelector(`#${id}`);
         const rect = document.querySelector(`#${id} .rect`);
         let flag = false;
-
-        this.addEventListenerFn(rect, 'mousedown', (e) => {
-            flag = true;
+        this.addEventListenerFn(rect, 'mousedown', (ev) => {
+            if (ev.button === 0) {
+                flag = true;
+            }
             this.addEventListenerFn(this.svg_body, 'mousemove', (e) => {
-                if(flag) {
-                    const sx = x;
-                    const sy = y;
-                    this.updateAttribute(svg,{x: sx, y: sy});
+                if (flag && e.button === 0) {
+                    const rect_x = Number(rect.getAttribute("x"));
+                    const rect_y = Number(rect.getAttribute("y"));
+                    const sx = this.scale >=1 ? (e.clientX - width) * 1.6 : (e.clientX - width) / 2;
+                    const sy = this.scale >= 1 ? (e.clientY - height) * 1.6 : (e.clientY - height) / 2;;
+                    this.updateAttribute(svg, { x: sx / 2, y: sy / 2 });
                 }
             })
             this.addEventListenerFn(this.svg_body, "mouseup", (e) => {
                 flag = false;
+                this.editState = false;
             })
         })
     }
@@ -340,7 +346,6 @@ class RectLibrary {
         const customDom = document.querySelector(`#${id} .rect_r_b`);
         let flag = false;
         this.editState = true;
-        let btn = 0;
         // 根据数据获取
         customDom.onmousedown = (event) => {
             flag = true;
@@ -353,7 +358,6 @@ class RectLibrary {
             })
             this.svg_body.addEventListener("mouseup", (e) => {
                 flag = false;
-                btn = -1;
                 this.editState = false;
             })
         }
