@@ -103,7 +103,7 @@ export default class vm {
                                     props: {
                                         id: 'virtual_polyline',
                                         points: "0,0",
-                                        style: "fill:rgb(239, 239, 239, 0.5);stroke:red;stroke-width:3"
+                                        style: "fill:rgb(239, 239, 239, 0.5);stroke:red;stroke-width:2"
                                     }
                                 }]
                             }]
