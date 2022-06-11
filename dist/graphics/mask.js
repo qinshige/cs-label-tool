@@ -8,6 +8,7 @@ export default class CSLabelMask {
         lineJoin: "round"
     }; // 设置样式
     ctx = null;
+    editDrawType = null;
     canvas = null;
     lineToMoveData = [];
     drawResultsList = [];

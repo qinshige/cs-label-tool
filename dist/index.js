@@ -8,6 +8,8 @@ const csLabelRect = new CSLabelRect();
 import CSLabelMask from "./graphics/mask.js";
 const csLabelMask = new CSLabelMask();
 
+
+
 // 设置虚拟DOM 创建结构
 function CreateStructure() {
     const img = new Image();
@@ -21,9 +23,7 @@ function CreateStructure() {
     }
 }
 // 鼠标开始绘制
-const polyline = [];
 CreateStructure.prototype.drawMousedown = function (e) {
-    console.log(this);
     this.startDraw = true;
     switch (window.type) {
         case 'rect':
@@ -91,5 +91,21 @@ CreateStructure.prototype.drawMouseup = function (e) {
     //     compiler.Render(drawData[drawData.length - 1], document.getElementById('rect'));
     // }
 }
-
+// 键盘事件
+// let keyName = null;
+window.onkeydown = function(e) {
+    console.log(e);
+    if(e.code === 'AltLeft') {
+        document.getElementById('svg_draw_layer').style.pointerEvents = 'none';
+        csLabelRect.editDrawType = false;
+        csLabelMask.editDrawType = false;
+    }
+}
+window.onkeyup = function(e) {
+    // keyName = null;
+    document.getElementById('svg_draw_layer').style.pointerEvents = '';
+    csLabelRect.editDrawType = true;
+    csLabelMask.editDrawType = true;
+    // console.log(e);
+}
 export default CreateStructure
