@@ -1,3 +1,5 @@
+
+
 export default class vm {
     h(self) {
         return {
@@ -60,6 +62,14 @@ export default class vm {
                                     tag: 'g',
                                     type: 'svg',
                                     props: {
+                                        id: 'mask',
+                                        declarescript: "mask",
+                                    },
+                                    children: []
+                                },{
+                                    tag: 'g',
+                                    type: 'svg',
+                                    props: {
                                         id: 'v_polyline',
                                         declarescript: "多线段展示",
                                     },
@@ -70,43 +80,14 @@ export default class vm {
                         {
                             tag: 'div',
                             props: {
-                                class: 'svg_draw_layer',
+                                id: 'svg_draw_layer',
                                 declare: '绘制层',
                                 style: `width: ${self.width / 2}px;height: ${self.height / 2}px;position: absolute;cursor: crosshair;`,
                                 onMousedown: self.drawMousedown,
                                 onMousemove: self.drawMousemove,
                                 onMouseup: self.drawMouseup
                             },
-                            children: [{
-                                tag: 'svg',
-                                type: 'svg',
-                                props: {
-                                    xmlns: "http://www.w3.org/2000/svg",
-                                    width: '100%',
-                                    height: '100%',
-                                },
-                                children: [{
-                                    tag: 'rect',
-                                    type: 'svg',
-                                    props: {
-                                        id: "virtual",
-                                        width: 0, 
-                                        height: 0,
-                                        x: 0,
-                                        y: 0,
-                                        style: 'fill:rgb(239, 239, 239);fill-opacity: 0.1; stroke: #2c9c21; stroke-width: 1;',
-                                    },
-                                    children: ''
-                                }, {
-                                    tag: 'polyline',
-                                    type: 'svg',
-                                    props: {
-                                        id: 'virtual_polyline',
-                                        points: "0,0",
-                                        style: "fill:rgb(239, 239, 239, 0.5);stroke:red;stroke-width:2"
-                                    }
-                                }]
-                            }]
+                            children: []
                         },
                     ]
                 },

@@ -16,7 +16,7 @@
 </head>
 
 <body>
-    <div><button onclick="drawType('rect')">矩形</button> <button onclick="drawType('polyline')">线段</button> </div>
+    <div><button onclick="drawType('rect')">矩形</button> <button onclick="drawType('mask')">涂抹</button>  <button onclick="drawType('polyline')">线段</button> </div>
     <script lang="js">
         function drawType(type) {
             this.type = type
@@ -24,119 +24,8 @@
         }
     </script>
     <script type="module">
-        import Compiler from "./js/compiler.js";
-        import vm from "./js/vnode.js";
-        const compiler = new Compiler();
-        const el = new vm();
-        const drawData = []; // 绘制数据
-        const initCoor = { x: null, y: null }; // 绘制坐标
-
-        let move = { x: 0, y: 0, width: 0, height: 0 } // 存储移动式的数据
+        import CreateStructure from "./dist/index.js";
         window.onload = function () {
-            // 设置虚拟DOM 创建结构
-            function CreateStructure() {
-                const img = new Image();
-                img.src = `./a.webp`;
-                img.onload = () => {
-                    this.width = img.width;
-                    this.height = img.width;
-                    this.src = img.src;
-                    this.vm = el.h(this); // 初始化实例
-                    compiler.Render(this.vm, document.body);
-                }
-            }
-            // 鼠标开始绘制
-            const polyline = [];
-            CreateStructure.prototype.drawMousedown = function (e) {
-                const virtual = e.target.childNodes;
-                this.startDraw = true;
-                if (window.type === 'rect') {
-                    initCoor.x = e.offsetX;
-                    initCoor.y = e.offsetY;
-                    move.x = e.offsetX;
-                    move.y = e.offsetY;
-                    virtual[0].setAttribute('x', initCoor.x);
-                    virtual[0].setAttribute('y', initCoor.y);
-                } else if (window.type === 'polyline') {
-                    polyline.concat(polyline.push(e.offsetX, e.offsetY));
-                    this.polyline = polyline;
-                    console.log("----", this.polyline);
-                    updateAttribute(document.getElementById('virtual_polyline'), { points: this.polyline.toString() });
-                }
-            }
-            // 鼠标移动
-            CreateStructure.prototype.drawMousemove = function (e) {
-                if (this.startDraw) {
-                    if (window.type === 'rect') {
-                        if (e.offsetX - initCoor.x > 0 && e.offsetY - initCoor.y > 0) {
-                            move.x = initCoor.x;
-                            move.y = initCoor.y;
-                            move.height = e.offsetY - initCoor.y;
-                            move.width = e.offsetX - initCoor.x;
-                        } else if (e.offsetX < initCoor.x && e.offsetY - initCoor.y > 0) {
-                            move.x = e.offsetX;
-                            move.width = initCoor.x - e.offsetX;
-                            move.height = e.offsetY - initCoor.y;
-                        } else if (e.offsetY < initCoor.y && e.offsetX - initCoor.x > 0) {
-                            move.y = e.offsetY;
-                            move.height = initCoor.y - e.offsetY;
-                            move.width = e.offsetX - initCoor.x;
-                        } else if (e.offsetY < initCoor.y && e.offsetX < initCoor.x) {
-                            move.x = e.offsetX;
-                            move.y = e.offsetY;
-                            move.height = initCoor.y - e.offsetY;
-                            move.width = initCoor.x - e.offsetX;
-                        }
-                        updateAttribute(document.getElementById('virtual'), { x: move.x, y: move.y, width: move.width, height: move.height });
-                    } else if (window.type === 'polyline') {
-                        this.polyline[this.polyline.length - 1] = e.offsetY;
-                        this.polyline[this.polyline.length - 2] = e.offsetX;
-                        console.log("12121", this.polyline.toString());
-                        updateAttribute(document.getElementById('virtual_polyline'), { points: this.polyline.toString() });
-                    }
-                }
-            }
-            // 绘制结束
-            CreateStructure.prototype.drawMouseup = function (e) {
-                this.startDraw = false;
-                if (window.type === 'rect') {
-                    updateAttribute(document.getElementById('virtual'), { x: 0, y: 0, width: 0, height: 0 });
-                    if (move.width !== 0 && move.height !== 0) {
-                        // 更新充值属性
-                        drawData.push({
-                            tag: 'rect',
-                            type: 'svg',
-                            props: {
-                                ...move,
-                                key: new Date().getTime(),
-                                style: 'fill:rgb(239, 239, 239);fill-opacity: 0.6; stroke: #2c9c21; stroke-width: 1;'
-                            },
-                            children: ''
-                        });
-                        compiler.Render(drawData[drawData.length - 1], document.getElementById('rect'));
-                    }
-                    move = { x: 0, y: 0, width: 0, height: 0 }
-
-
-                } else if (window.type === 'polyline') {
-                    drawData.push({
-                        tag: 'polyline',
-                        type: 'svg',
-                        props: {
-                            id: 'v_polyline',
-                            points: "0,0",
-                            style: "fill:none;stroke:black;stroke-width:3"
-                        }
-                    });
-                    compiler.Render(drawData[drawData.length - 1], document.getElementById('rect'));
-                }
-            }
-            // 更新属性
-            function updateAttribute(tag, objAttr) {
-                for (let attr in objAttr) {
-                    tag.setAttribute(attr, objAttr[attr]);
-                }
-            };
             new CreateStructure();
         }
     </script>
