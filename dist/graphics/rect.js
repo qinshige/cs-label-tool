@@ -89,13 +89,13 @@ export default class CSLabelRect {
         this.move.height = this.initCoor.y - e.offsetY
         this.move.width = this.initCoor.x - e.offsetX
       }
-      this.updateAttribute(document.getElementById('virtual'), { ...this.move })
+      this.updateAttribute(document.getElementById('virtual'), this.move)
     }
   }
   // 结束绘制
   drawRectMouseup(e) {
-    console.log({ ...this.initCoor })
-    console.log(e.offsetX, e.offsetY)
+    // console.log({ ...this.initCoor })
+    // console.log(e.offsetX, e.offsetY)
     if (this.editDrawType) {
       if (
         e.offsetX - this.initCoor.x === 0 ||
