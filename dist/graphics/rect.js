@@ -94,8 +94,6 @@ export default class CSLabelRect {
   }
   // 结束绘制
   drawRectMouseup(e) {
-    // console.log({ ...this.initCoor })
-    // console.log(e.offsetX, e.offsetY)
     if (this.editDrawType) {
       if (
         e.offsetX - this.initCoor.x === 0 ||
