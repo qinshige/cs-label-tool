@@ -23,8 +23,8 @@ yarn.lock
 *.sln
 *.sw?
 
-#Electron-builder output
-dist_electron
-undefineddist_electron
+# #Electron-builder output
+# dist_electron
+# undefineddist_electron
 
-package-lock.json
+# package-lock.json
