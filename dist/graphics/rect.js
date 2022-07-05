@@ -87,14 +87,14 @@ export default class CSLabelRect {
     drawRectMouseup(e) {
         if (this.editDrawType) {
             this.updateAttribute(document.getElementById('virtual'), { x: 0, y: 0, width: 0, height: 0 });
-            if (this.move.width !== 0 && this.move.height !== 0) {
+
+            if (this.move.width !== 0 && this.move.height !== 0 && !window.keyName) {
                 // 更新充值属性
                 this.drawDataRectResult.push({
                     tag: 'rect',
                     type: 'svg',
                     props: {
                         ...this.move,
-                        key: new Date().getTime(),
                         style: 'fill:rgb(239, 239, 239);fill-opacity: 0.6; stroke: #2c9c21; stroke-width: 1;cursor: pointer;',
                         'data-index': this.drawDataRectResult.length,
                         id: `rect_${this.drawDataRectResult.length}`,

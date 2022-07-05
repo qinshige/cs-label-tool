@@ -6,7 +6,7 @@ export default class vm {
             tag: 'div',
             props: {
                 id: 'app',
-                style: `position: relative;width: ${self.width / 2}px;height: ${self.height / 2}px;border: 2px solid red; padding: 10px;`
+                style: `position: relative;width: ${self.width / 2}px;height: ${self.height / 2}px;border: 2px solid red; padding: 10px;`,
             },
             children: [
                 {

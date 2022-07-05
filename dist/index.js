@@ -31,7 +31,7 @@ CreateStructure.prototype.drawMousedown = function (e) {
             break;
         case 'mask':
             console.log(this.offsetWidth);
-            csLabelMask.drawMaskMousedow(e,{width: this.offsetWidth, height: this.offsetHeight});
+            csLabelMask.drawMaskMousedow(e, { width: this.offsetWidth, height: this.offsetHeight });
             break;
     }
     // if (window.type === 'rect') {
@@ -93,19 +93,35 @@ CreateStructure.prototype.drawMouseup = function (e) {
 }
 // 键盘事件
 // let keyName = null;
-window.onkeydown = function(e) {
-    console.log(e);
-    if(e.code === 'AltLeft') {
+document.onkeydown = function (e) {
+    if (e.code === 'AltLeft') {
+        console.log(e);
+        window.keyName = e.code;
         document.getElementById('svg_draw_layer').style.pointerEvents = 'none';
         csLabelRect.editDrawType = false;
         csLabelMask.editDrawType = false;
     }
 }
-window.onkeyup = function(e) {
+document.onkeyup = function () {
     // keyName = null;
+    window.keyName = null;
     document.getElementById('svg_draw_layer').style.pointerEvents = '';
     csLabelRect.editDrawType = true;
     csLabelMask.editDrawType = true;
     // console.log(e);
 }
+// CreateStructure.prototyper.keydownFn = function() {
+//     // if(e.code === 'AltLeft') {
+//     //     document.getElementById('svg_draw_layer').style.pointerEvents = 'none';
+//     //     csLabelRect.editDrawType = false;
+//     //     csLabelMask.editDrawType = false;
+//     // }
+// }
+// CreateStructure.prototyper.keyupFn = function() {
+//     // keyName = null;
+//     // document.getElementById('svg_draw_layer').style.pointerEvents = '';
+//     // csLabelRect.editDrawType = true;
+//     // csLabelMask.editDrawType = true;
+//     // console.log(e);
+// }
 export default CreateStructure

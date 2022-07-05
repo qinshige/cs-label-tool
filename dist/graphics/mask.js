@@ -80,17 +80,17 @@ export default class CSLabelMask {
                 declares: this.drawResultsList.length,
             },
             children: [
-                {
-                    tag: 'rect',
-                    type: 'svg',
-                    props: {
-                        width,
-                        height,
-                        x,
-                        y,
-                        style: 'fill:rgb(239, 239, 239);fill-opacity: 0; stroke: #2c9c21; stroke-width: 1;'
-                    }
-                },
+                // {
+                //     tag: 'rect',
+                //     type: 'svg',
+                //     props: {
+                //         width,
+                //         height,
+                //         x,
+                //         y,
+                //         style: 'fill:rgb(239, 239, 239);fill-opacity: 0; stroke: #2c9c21; stroke-width: 1;'
+                //     }
+                // },
                 {
                     tag: 'image',
                     type: 'svg',
