@@ -9,5 +9,18 @@ export class EditRect {
     },
     children: [],
   }
-  generateEditdot() {}
+  generateEditdot(editData) {
+    const node = generateNode(editData)
+    compiler.Render(node, document.getElementById('svg_body'))
+  }
+
+  generateNode(editData) {
+    editData.forEach((el) => {
+      this.editNode.children.push({
+        tag: 'circle',
+        type: 'svg',
+        props: {},
+      })
+    })
+  }
 }
