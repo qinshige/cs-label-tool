@@ -21,7 +21,7 @@ function effect(fn, options = {}) {
     effectFn.deps = [];
 
 
-    
+
     // 只有非 lazy 的时候执行
     if (!options.lazy) {
         // 执行副作用函数
@@ -120,8 +120,12 @@ export function computed(getter) {
     // dirty 标志， 用来标识是否需要重新计算值， 为 true 则意味着 “脏”， 需要重新计算
     let dirty = true;
     // 把 getter 作为副作用函数， 创建一个 lazy 的 effect
-    const effectFn = effect(getter,{
-        lazy: true
+    const effectFn = effect(getter, {
+        lazy: true,
+        // 添加调度器，在调度器中将 dirty 重置为 true
+        scheduler() {
+            dirty = true
+        }
     })
 
     const obj = {
