@@ -1,5 +1,5 @@
-let activeEffect
-// effent 栈
+// effect 栈
+let activeEffect = null
 const effectStack = []
 function effect(fn, options = {}) {
   let effectFn = () => {
@@ -95,11 +95,11 @@ function cleanup(effectFn) {
 function ref(data) {
   return new Proxy(data, {
     // 拦截读取操作
-    get(target, key) {
+    get(target, key, reactive) {
       // 将副作用函数 activeEffect 添加到存储副作用函数的桶中
       track(target, key)
       // 返回属性值
-      return target[key]
+      return Reflect.get(target, key, reactive)
     },
     // 拦截设置操作
     set(target, key, newVal) {
@@ -166,15 +166,33 @@ function watch(source, cb, options = {}) {
     cb(newVal, oldVal)
     oldVal = newVal
   }
+  let getter
+  if (typeof source === 'function') {
+    if (typeof source() === 'object') {
+      console.warn(
+        'watch 接收值为一个方法 因此 只允许接收一个单值 不能是一个对象'
+      )
+      return
+    }
+    getter = source
+  } else {
+    if (typeof source !== 'object') {
+      console.warn(
+        'watch 接收值为一个单值 因此 只允许接收一个对象 不能是一个单值'
+      )
+      return
+    }
+    getter = () => traverse(source)
+  }
   const effectFn = effect(
     // 调用 traverse 递归读取
-    typeof source === 'function' ? source : () => traverse(source),
+    () => getter(),
     {
       lazy: true,
       scheduler: job,
     }
   )
-  options.immedlate ? job() : (oldVal = effectFn())
+  options.immediate ? job() : (oldVal = effectFn())
 }
 
 export { computed, ref, watch }

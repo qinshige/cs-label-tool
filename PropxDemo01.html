@@ -7,28 +7,26 @@
     <title>Document</title>
   </head>
   <body>
-    <span id="span"></span>
-    <p id="p"></p>
-    <!-- <script src="./js/reactive/effect.js"></script> -->
     <script type="module">
       import { computed, ref, watch } from './js/reactive/vue.js'
       const obj = ref({
         num1: 12,
         num2: 13,
       })
-      console.log(obj)
       watch(
         () => obj.num1,
         (newVal, oldVal) => {
           console.log('数据变化', newVal, oldVal)
         },
         {
-          immedlate: true,
+          immediate: true,
         }
       )
-      // return false
+      watch(obj.num1, (newVal, oldVal) => {
+        console.log('数据变化2', newVal, oldVal)
+      })
       const sum = computed(() => obj.num1 + obj.num2)
-      // console.log('---sfc-fe----', sum.value)
+      // 模拟更新数据 触发计算属性 以及 watch 监听
       setTimeout(() => {
         obj.num1 = 8
         console.log('---sfc-wwwfe----', obj, sum.value)

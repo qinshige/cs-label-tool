@@ -1,34 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>标注</title>
     <link rel="icon" href="./public/favicon.ico" />
     <style>
-        * {
-            padding: 0;
-            margin: 0;
-        }
+      * {
+        padding: 0;
+        margin: 0;
+      }
     </style>
-</head>
+  </head>
 
-<body>
-    <div><button onclick="drawType('rect')">矩形</button> <button onclick="drawType('mask')">涂抹</button>  <button onclick="drawType('polyline')">线段</button> </div>
+  <body>
+    <div>
+      <button onclick="drawType('rect')">矩形</button>
+      <button onclick="drawType('mask')">涂抹</button>
+      <button onclick="drawType('polyline')">线段</button>
+    </div>
     <script lang="js">
-        function drawType(type) {
-            this.type = type
-            console.log(type);
-        }
+      function drawType(type) {
+          this.type = type
+          console.log(type);
+      }
     </script>
     <script type="module">
-        import CreateStructure from "./dist/index.js";
-        window.onload = function () {
-            new CreateStructure();
-        }
+      import CreateStructure from './dist/index.js'
+      window.onload = function () {
+        new CreateStructure({
+          url: '../a.webp',
+          editKey: 'AltLeft',
+        })
+      }
     </script>
-</body>
-
+  </body>
 </html>

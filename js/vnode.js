@@ -12,13 +12,14 @@ export default class vm {
         {
           tag: 'div',
           props: {
+            id: 'draw_target',
             declares: '绘制主体拖拽层',
             style: `width: ${self.width / 2}px;height: ${
               self.height / 2
             }px;position: absolute;`,
-            onMousedown: self.drawMousedown,
-            onMousemove: self.drawMousemove,
-            onMouseup: self.drawMouseup,
+            // onMousedown: self.drawMousedown,
+            // onMousemove: self.drawMousemove,
+            // onMouseup: self.drawMouseup,
           },
           children: [
             {
