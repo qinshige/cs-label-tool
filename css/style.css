@@ -1,7 +1,0 @@
-    #canvas1{position: absolute;background-image: url("./image/20200108173011.jpg");z-index: 997;}
-    #canvas2{position: absolute;background-image: url("./image/20200108173011.jpg");z-index: 998;}
-    .tooltip-pen{position: fixed;width: 40px;height: 125px;top: 5%;left: 650px;z-index: 999;background-color: #737373;border-radius: 5px;}
-    .ico{display: inline-block;width: 40px;height: 40px;}
-    .ico-pen {background-image: url("./image/pencil.png");background-size: 100% 100%;background-repeat: no-repeat;background-position: top center;}
-    .ico-eraser {background-image: url("./image/eraser.png");background-size: 100% 100%;background-repeat: no-repeat;background-position: top center;}
-    .ico-save{background-image: url("./image/save.png");background-size: 100% 100%;background-repeat: no-repeat;background-position: top center;}
