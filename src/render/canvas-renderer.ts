@@ -136,6 +136,28 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
         const context = canvas.getContext('2d')
         if (context !== null) {
           resetAndClear(context, canvas)
+          const draft = state.interactionDraft
+          if (draft?.type === 'rect' && state.viewport !== null) {
+            const label = state.labels.find(item => item.id === draft.labelId)
+            const { scale, offsetX, offsetY } = state.viewport
+            context.setTransform(
+              layerSize.dpr * scale,
+              0,
+              0,
+              layerSize.dpr * scale,
+              layerSize.dpr * offsetX,
+              layerSize.dpr * offsetY,
+            )
+            context.strokeStyle = label?.color ?? '#2c9c21'
+            context.lineWidth = 2 / scale
+            context.setLineDash([6 / scale, 4 / scale])
+            context.strokeRect(
+              draft.geometry.x,
+              draft.geometry.y,
+              draft.geometry.width,
+              draft.geometry.height,
+            )
+          }
         }
       }
     },

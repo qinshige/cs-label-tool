@@ -104,3 +104,27 @@ export type {
   LoadedImage,
   StandardImageInput,
 } from './image/types.js'
+
+export {
+  activateTool,
+  cancelActiveGesture,
+} from './tools/controller.js'
+
+export {
+  createRectTool,
+  createRectToolState,
+  reduceRectTool,
+  useRect,
+  type RectToolInput,
+  type RectToolOptions,
+  type RectToolResult,
+  type RectToolState,
+} from './tools/rect-tool.js'
+
+export type {
+  InteractionDraft,
+  NormalizedPointerInput,
+  Tool,
+  ToolContext,
+  ToolController,
+} from './tools/types.js'

@@ -8,6 +8,7 @@ import { createGridIndex, type GridIndex } from '../spatial/grid-index.js'
 import type { ImageSource, LoadedImage } from '../image/types.js'
 import type { CanvasRenderer } from '../render/canvas-renderer.js'
 import type { ViewportState } from '../viewport/viewport.js'
+import type { ToolController, InteractionDraft } from '../tools/types.js'
 
 export interface DomainContents {
   readonly annotations: readonly Annotation[]
@@ -39,6 +40,9 @@ export interface InternalState {
   imageAbortController: AbortController | null
   renderer: CanvasRenderer | null
   viewport: ViewportState | null
+  toolController: ToolController | null
+  activeToolId: string | null
+  interactionDraft: InteractionDraft | null
 }
 
 export function createInternalState(options: AnnotatorOptions): InternalState {
@@ -63,5 +67,8 @@ export function createInternalState(options: AnnotatorOptions): InternalState {
     imageAbortController: null,
     renderer: null,
     viewport: null,
+    toolController: null,
+    activeToolId: null,
+    interactionDraft: null,
   }
 }

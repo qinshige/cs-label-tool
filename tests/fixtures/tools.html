@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tool fixture</title>
+  </head>
+  <body style="margin: 0">
+    <button id="rect" type="button">Rectangle</button>
+    <div id="app" style="width: 800px; height: 600px"></div>
+    <script type="module">
+      import {
+        addLabel,
+        createAnnotator,
+        createStandardImageSource,
+        getSnapshot,
+        setImageSource,
+        useRect,
+      } from '/src/index.ts'
+
+      const container = document.querySelector('#app')
+      const annotator = createAnnotator({ container })
+      addLabel(annotator, {
+        id: 'person',
+        name: 'Person',
+        color: '#ff4d4f',
+      })
+      const image = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="white"/></svg>',
+      )
+      await setImageSource(annotator, createStandardImageSource(image))
+      document.querySelector('#rect').addEventListener('click', () => {
+        useRect(annotator, { labelId: 'person' })
+      })
+      window.getTestSnapshot = () => getSnapshot(annotator)
+      document.documentElement.dataset.ready = 'true'
+    </script>
+  </body>
+</html>
