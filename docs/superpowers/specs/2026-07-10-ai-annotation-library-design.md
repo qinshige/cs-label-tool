@@ -50,11 +50,12 @@ It is not a generic drawing library. AI suggestions, model provenance, human rev
 ## 3. Compatibility and Packaging
 
 - TypeScript is the implementation language.
+- The published package name remains `cs-label-tool`.
 - The package has zero runtime dependencies.
 - Browser support is the latest two major versions of Chrome, Edge, and Firefox, plus Safari 17 and newer.
 - Distribution is ESM-only with TypeScript declarations and source maps.
 - Public modules support tree shaking and subpath imports.
-- Build and test dependencies may include TypeScript, Vite library mode, Vitest, and Playwright.
+- The development toolchain uses the TypeScript compiler, Vite library mode, Vitest, and Playwright.
 - The package exposes a stable root API and marks internal modules as non-public.
 
 ## 4. Public API Principles
@@ -149,7 +150,20 @@ interface MaskGeometry {
   tileSize: number
   tiles: ReadonlyMap<string, MaskTile>
 }
+
+interface MaskTile {
+  tileX: number
+  tileY: number
+  width: number
+  height: number
+  encoding: 'bitset'
+  data: Uint8Array
+}
 ```
+
+`MaskTile` is the in-memory representation. JSON-compatible snapshots convert changed tiles to COCO-compatible RLE records; they never attempt to serialize `ReadonlyMap` or `Uint8Array` directly.
+
+Manual annotations enter the `accepted` state. AI results enter `suggested`; accepted or edited results transition to `accepted` or `modified`. Rejected results retain their annotation identity and provenance in the review log but are excluded from visible-annotation queries and format exports unless an export option explicitly requests rejected review data.
 
 State is separated into:
 
@@ -302,6 +316,8 @@ const task = requestAIAnnotations(annotator, {
 cancelAIInference(task)
 ```
 
+`requestAIAnnotations()` returns an `AIInferenceTask` containing a stable task ID, current lifecycle state, and a `done: Promise<AIInferenceSummary>` completion promise. Starting inference never blocks drawing, selection, or manual save operations.
+
 AI behavior:
 
 - Every request carries image ID, image revision, request ID, and cancellation signal.
@@ -331,6 +347,8 @@ AI behavior:
 - Visible distinction between suggestions, accepted results, and modified results.
 
 Components call the same public functional API as headless consumers. They do not access internal state. Styling uses CSS custom properties and Shadow DOM parts so host applications can theme and rearrange the default interface.
+
+Default components provide keyboard operation, visible focus states, accessible names, and appropriate ARIA relationships. Color is never the only indication of suggestion or review status. Pointer-only gestures have keyboard-accessible command equivalents where the operation can be expressed without freehand drawing.
 
 ## 14. Auto-Save and Host Integration
 
