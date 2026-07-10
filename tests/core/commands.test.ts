@@ -12,6 +12,8 @@ import {
   removeAnnotation,
   setActiveLabel,
   getActiveLabel,
+  getSelection,
+  selectAnnotation,
   undo,
   updateAnnotation,
 } from '../../src/index.js'
@@ -139,5 +141,21 @@ describe('domain commands', () => {
       points: [[0, 0], [10, 10], [20, 20]],
     })).toThrowError(/invalid polygon/i)
     expect(getSnapshot(annotator)).toEqual(before)
+  })
+
+  test('clears invalid selections when remove or undo deletes an annotation', () => {
+    const annotator = createTestAnnotator()
+    addLabel(annotator, { id: 'shape', name: 'Shape', color: '#333333' })
+    const id = addRect(annotator, {
+      labelId: 'shape', x: 0, y: 0, width: 20, height: 20,
+    })
+    selectAnnotation(annotator, id)
+
+    removeAnnotation(annotator, id)
+    expect(getSelection(annotator)).toEqual([])
+    undo(annotator)
+    selectAnnotation(annotator, id)
+    undo(annotator)
+    expect(getSelection(annotator)).toEqual([])
   })
 })

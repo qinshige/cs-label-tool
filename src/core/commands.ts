@@ -145,6 +145,11 @@ function insertAnnotation(
 }
 
 function deleteAnnotation(state: InternalState, id: string): void {
+  if (state.selectedIds.includes(id)) {
+    state.toolController?.cancel()
+    state.selectedIds = state.selectedIds.filter(selectedId => selectedId !== id)
+    state.interactionDraft = null
+  }
   const index = state.annotations.findIndex(annotation => annotation.id === id)
   if (index >= 0) {
     state.annotations.splice(index, 1)

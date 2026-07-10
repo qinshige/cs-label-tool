@@ -12,10 +12,14 @@ export type PolygonValidation =
     }
 
 function pointOnSegment(point: Point, start: Point, end: Point): boolean {
-  const cross =
-    (point.y - start.y) * (end.x - start.x) -
-    (point.x - start.x) * (end.y - start.y)
-  if (Math.abs(cross) > Number.EPSILON * 16) {
+  const firstProduct = (point.y - start.y) * (end.x - start.x)
+  const secondProduct = (point.x - start.x) * (end.y - start.y)
+  const cross = firstProduct - secondProduct
+  const tolerance = Number.EPSILON * 16 * Math.max(
+    1,
+    Math.abs(firstProduct) + Math.abs(secondProduct),
+  )
+  if (Math.abs(cross) > tolerance) {
     return false
   }
 
@@ -24,6 +28,38 @@ function pointOnSegment(point: Point, start: Point, end: Point): boolean {
     point.x <= Math.max(start.x, end.x) &&
     point.y >= Math.min(start.y, end.y) &&
     point.y <= Math.max(start.y, end.y)
+  )
+}
+
+function orientation(start: Point, end: Point, point: Point): -1 | 0 | 1 {
+  const firstProduct = (end.y - start.y) * (point.x - end.x)
+  const secondProduct = (end.x - start.x) * (point.y - end.y)
+  const value = firstProduct - secondProduct
+  const tolerance = Number.EPSILON * 16 * Math.max(
+    1,
+    Math.abs(firstProduct) + Math.abs(secondProduct),
+  )
+  return Math.abs(value) <= tolerance ? 0 : value > 0 ? 1 : -1
+}
+
+function segmentsIntersect(
+  firstStart: Point,
+  firstEnd: Point,
+  secondStart: Point,
+  secondEnd: Point,
+): boolean {
+  const first = orientation(firstStart, firstEnd, secondStart)
+  const second = orientation(firstStart, firstEnd, secondEnd)
+  const third = orientation(secondStart, secondEnd, firstStart)
+  const fourth = orientation(secondStart, secondEnd, firstEnd)
+  if (first !== 0 && second !== 0 && third !== 0 && fourth !== 0) {
+    return first !== second && third !== fourth
+  }
+  return (
+    (first === 0 && pointOnSegment(secondStart, firstStart, firstEnd)) ||
+    (second === 0 && pointOnSegment(secondEnd, firstStart, firstEnd)) ||
+    (third === 0 && pointOnSegment(firstStart, secondStart, secondEnd)) ||
+    (fourth === 0 && pointOnSegment(firstEnd, secondStart, secondEnd))
   )
 }
 
@@ -68,21 +104,6 @@ export function validatePolygon(
   const uniquePoints = new Set(polygon.map(point => `${point.x}:${point.y}`))
   if (uniquePoints.size < 3) {
     return { valid: false, reason: 'TOO_FEW_POINTS' }
-  }
-
-  const segmentsIntersect = (
-    firstStart: Point,
-    firstEnd: Point,
-    secondStart: Point,
-    secondEnd: Point,
-  ) => {
-    const orientation = (a: Point, b: Point, c: Point) =>
-      (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y)
-    const first = orientation(firstStart, firstEnd, secondStart)
-    const second = orientation(firstStart, firstEnd, secondEnd)
-    const third = orientation(secondStart, secondEnd, firstStart)
-    const fourth = orientation(secondStart, secondEnd, firstEnd)
-    return first * second < 0 && third * fourth < 0
   }
 
   for (let first = 0; first < polygon.length; first += 1) {

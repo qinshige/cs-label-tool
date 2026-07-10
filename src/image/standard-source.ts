@@ -42,6 +42,7 @@ function loadImageElement(url: string, signal: AbortSignal): Promise<HTMLImageEl
 export function createStandardImageSource(
   input: StandardImageInput,
 ): ImageSource {
+  let sourceInput: StandardImageInput | null = input
   let loadedImage: HTMLImageElement | null = null
   let ownedBitmap: ImageBitmap | null = null
   let bitmapPromise: Promise<ImageBitmap> | null = null
@@ -57,15 +58,23 @@ export function createStandardImageSource(
       if (signal.aborted) {
         throw createAbortError()
       }
-      if (isImageBitmap(input)) {
-        bitmapPromise ??= createImageBitmap(input)
+      if (sourceInput !== null && isImageBitmap(sourceInput)) {
+        const bitmapInput = sourceInput
+        sourceInput = null
+        bitmapPromise = createImageBitmap(bitmapInput).then(bitmap => {
+          if (disposed) {
+            bitmap.close()
+            throw createAbortError()
+          }
+          ownedBitmap = bitmap
+          return bitmap
+        })
+      }
+      if (bitmapPromise !== null) {
         const bitmap = await bitmapPromise
         if (disposed || signal.aborted) {
-          bitmap.close()
-          bitmapPromise = null
           throw createAbortError()
         }
-        ownedBitmap = bitmap
         return { source: bitmap, width: bitmap.width, height: bitmap.height }
       }
       if (loadedImage !== null) {
@@ -76,17 +85,21 @@ export function createStandardImageSource(
         }
       }
 
-      if (typeof input !== 'string') {
-        objectUrl = URL.createObjectURL(input)
+      if (sourceInput === null) {
+        throw new Error('The image input is unavailable.')
+      }
+      if (typeof sourceInput !== 'string') {
+        objectUrl = URL.createObjectURL(sourceInput)
       }
       const image = await loadImageElement(
-        typeof input === 'string' ? input : objectUrl as string,
+        typeof sourceInput === 'string' ? sourceInput : objectUrl as string,
         signal,
       )
       if (disposed) {
         throw createAbortError()
       }
       loadedImage = image
+      sourceInput = null
       return {
         source: image,
         width: image.naturalWidth,
@@ -98,6 +111,7 @@ export function createStandardImageSource(
         return
       }
       disposed = true
+      sourceInput = null
       loadedImage = null
       ownedBitmap?.close()
       ownedBitmap = null

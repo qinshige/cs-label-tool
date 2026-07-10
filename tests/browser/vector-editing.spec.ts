@@ -163,10 +163,23 @@ test('creates polygons and edits vectors in original-image coordinates', async (
     )?.geometry,
   )).toEqual(polygonAfterEdit)
 
-  const selectedPolygonCenter = await page.evaluate(() =>
-    window.vectorTest.pointToClient({ x: 550, y: 150 }),
-  )
-  await page.mouse.click(selectedPolygonCenter.x, selectedPolygonCenter.y)
+  const dragPoints = await page.evaluate(() => ({
+    start: window.vectorTest.pointToClient({ x: 550, y: 150 }),
+    end: window.vectorTest.pointToClient({ x: 570, y: 170 }),
+  }))
+  await page.mouse.move(dragPoints.start.x, dragPoints.start.y)
+  await page.mouse.down()
+  await page.mouse.move(dragPoints.end.x, dragPoints.end.y)
+  await page.keyboard.press('Delete')
+  await page.mouse.move(dragPoints.end.x + 5, dragPoints.end.y + 5)
+  await page.mouse.up()
+  expect(await page.evaluate(() => window.vectorTest.snapshot().annotations.length))
+    .toBe(2)
+  await page.evaluate(() => window.vectorTest.undo())
+  expect(await page.evaluate(() => window.vectorTest.snapshot().annotations.length))
+    .toBe(3)
+
+  await page.mouse.click(dragPoints.start.x, dragPoints.start.y)
   expect(await page.evaluate(() => window.vectorTest.selection())).toEqual([
     ids.polygonId,
   ])
@@ -174,12 +187,5 @@ test('creates polygons and edits vectors in original-image coordinates', async (
   await page.evaluate(() => window.vectorTest.zoom(2.5))
   expect(await page.evaluate(() => window.vectorTest.snapshot().annotations))
     .toEqual(snapshot.annotations)
-
-  await page.keyboard.press('Delete')
-  expect(await page.evaluate(() => window.vectorTest.snapshot().annotations.length))
-    .toBe(2)
-  await page.evaluate(() => window.vectorTest.undo())
-  expect(await page.evaluate(() => window.vectorTest.snapshot().annotations.length))
-    .toBe(3)
   expect(pageErrors).toEqual([])
 })

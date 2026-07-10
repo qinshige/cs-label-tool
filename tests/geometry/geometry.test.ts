@@ -61,4 +61,22 @@ describe('polygon geometry', () => {
       { x: 20, y: 0 },
     ])).toEqual({ valid: false, reason: 'SELF_INTERSECTION' })
   })
+
+  test('rejects non-adjacent edges that touch or overlap', () => {
+    expect(validatePolygon([
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 20 },
+    ])).toEqual({ valid: false, reason: 'SELF_INTERSECTION' })
+  })
+
+  test('rejects repeated vertices in an otherwise nonzero polygon', () => {
+    expect(validatePolygon([
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 20, y: 20 },
+      { x: 0, y: 0 },
+    ])).toEqual({ valid: false, reason: 'SELF_INTERSECTION' })
+  })
 })

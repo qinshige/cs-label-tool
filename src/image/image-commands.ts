@@ -34,8 +34,21 @@ export async function setImageSource(
   source: ImageSource,
 ): Promise<void> {
   const state = getInternalState(annotator)
+  const hadImage = state.image !== null
   state.imageAbortController?.abort()
+  state.imageAbortController = null
+  state.image = null
+  state.viewport = null
+  state.toolController?.cancel()
+  state.interactionDraft = null
+  state.renderer?.invalidate('image')
+  state.renderer?.invalidate('annotations')
+  state.renderer?.invalidate('interaction')
   state.imageSource?.dispose()
+  state.imageSource = null
+  if (hadImage) {
+    emitChange(annotator, 'image:clear')
+  }
 
   const controller = new AbortController()
   state.imageAbortController = controller
