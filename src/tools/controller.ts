@@ -47,6 +47,7 @@ function normalizePointer(
     imagePoint,
     buttons: event.buttons,
     pressure: event.pressure,
+    detail: event.detail,
   }
 }
 
@@ -83,7 +84,9 @@ export function createToolController(
   const keydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       activeTool?.cancel(context)
+      return
     }
+    activeTool?.handleKey?.(event, context)
   }
 
   canvas.addEventListener('pointerdown', down)

@@ -137,7 +137,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
         if (context !== null) {
           resetAndClear(context, canvas)
           const draft = state.interactionDraft
-          if (draft?.type === 'rect' && state.viewport !== null) {
+          if (draft !== null && state.viewport !== null) {
             const label = state.labels.find(item => item.id === draft.labelId)
             const { scale, offsetX, offsetY } = state.viewport
             context.setTransform(
@@ -151,12 +151,75 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
             context.strokeStyle = label?.color ?? '#2c9c21'
             context.lineWidth = 2 / scale
             context.setLineDash([6 / scale, 4 / scale])
-            context.strokeRect(
-              draft.geometry.x,
-              draft.geometry.y,
-              draft.geometry.width,
-              draft.geometry.height,
+            if (draft.type === 'rect') {
+              context.strokeRect(
+                draft.geometry.x,
+                draft.geometry.y,
+                draft.geometry.width,
+                draft.geometry.height,
+              )
+            } else {
+              const points = draft.type === 'polygon'
+                ? draft.points.map(point => [point.x, point.y] as const)
+                : draft.geometry.type === 'polygon'
+                  ? draft.geometry.points
+                  : []
+              if (draft.type === 'vector' && draft.geometry.type === 'rect') {
+                context.strokeRect(
+                  draft.geometry.x,
+                  draft.geometry.y,
+                  draft.geometry.width,
+                  draft.geometry.height,
+                )
+              } else if (points[0] !== undefined) {
+                context.beginPath()
+                context.moveTo(points[0][0], points[0][1])
+                for (const point of points.slice(1)) {
+                  context.lineTo(point[0], point[1])
+                }
+                if (draft.type === 'vector') {
+                  context.closePath()
+                }
+                context.stroke()
+              }
+            }
+          }
+          if (state.viewport !== null) {
+            const { scale, offsetX, offsetY } = state.viewport
+            context.setTransform(
+              layerSize.dpr * scale,
+              0,
+              0,
+              layerSize.dpr * scale,
+              layerSize.dpr * offsetX,
+              layerSize.dpr * offsetY,
             )
+            const size = 8 / scale
+            context.setLineDash([])
+            for (const id of state.selectedIds) {
+              const annotation = state.annotationsById.get(id)
+              if (annotation === undefined) {
+                continue
+              }
+              const points = annotation.geometry.type === 'rect'
+                ? [
+                    [annotation.geometry.x, annotation.geometry.y],
+                    [annotation.geometry.x + annotation.geometry.width / 2, annotation.geometry.y],
+                    [annotation.geometry.x + annotation.geometry.width, annotation.geometry.y],
+                    [annotation.geometry.x + annotation.geometry.width, annotation.geometry.y + annotation.geometry.height / 2],
+                    [annotation.geometry.x + annotation.geometry.width, annotation.geometry.y + annotation.geometry.height],
+                    [annotation.geometry.x + annotation.geometry.width / 2, annotation.geometry.y + annotation.geometry.height],
+                    [annotation.geometry.x, annotation.geometry.y + annotation.geometry.height],
+                    [annotation.geometry.x, annotation.geometry.y + annotation.geometry.height / 2],
+                  ] as const
+                : annotation.geometry.points
+              context.fillStyle = '#ffffff'
+              context.strokeStyle = '#1677ff'
+              for (const [x, y] of points) {
+                context.fillRect(x - size / 2, y - size / 2, size, size)
+                context.strokeRect(x - size / 2, y - size / 2, size, size)
+              }
+            }
           }
         }
       }

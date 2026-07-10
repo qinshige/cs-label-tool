@@ -44,6 +44,7 @@ export function destroyAnnotator(annotator: Annotator): void {
   state.toolController = null
   state.activeToolId = null
   state.interactionDraft = null
+  state.selectedIds = []
   state.listeners.change.clear()
   state.listeners.error.clear()
 }

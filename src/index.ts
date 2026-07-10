@@ -128,3 +128,26 @@ export type {
   ToolContext,
   ToolController,
 } from './tools/types.js'
+
+export {
+  createPolygonTool,
+  createPolygonToolState,
+  reducePolygonTool,
+  usePolygon,
+  type PolygonToolInput,
+  type PolygonToolOptions,
+  type PolygonToolResult,
+  type PolygonToolState,
+} from './tools/polygon-tool.js'
+
+export {
+  clearSelection,
+  createSelectTool,
+  getSelection,
+  movePolygonVertex,
+  moveRect,
+  resizeRect,
+  selectAnnotation,
+  useSelect,
+  type RectHandle,
+} from './tools/select-tool.js'

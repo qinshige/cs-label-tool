@@ -43,6 +43,7 @@ export interface InternalState {
   toolController: ToolController | null
   activeToolId: string | null
   interactionDraft: InteractionDraft | null
+  selectedIds: string[]
 }
 
 export function createInternalState(options: AnnotatorOptions): InternalState {
@@ -70,5 +71,6 @@ export function createInternalState(options: AnnotatorOptions): InternalState {
     toolController: null,
     activeToolId: null,
     interactionDraft: null,
+    selectedIds: [],
   }
 }

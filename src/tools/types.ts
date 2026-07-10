@@ -1,4 +1,8 @@
-import type { Annotator } from '../core/types.js'
+import type {
+  Annotator,
+  PolygonGeometry,
+  RectGeometry,
+} from '../core/types.js'
 import type { Bounds, Point } from '../geometry/types.js'
 
 export type NormalizedPointerInput =
@@ -9,6 +13,7 @@ export type NormalizedPointerInput =
       readonly imagePoint: Point
       readonly buttons: number
       readonly pressure: number
+      readonly detail: number
     }
 
 export interface RectInteractionDraft {
@@ -17,7 +22,23 @@ export interface RectInteractionDraft {
   readonly labelId: string
 }
 
-export type InteractionDraft = RectInteractionDraft
+export interface PolygonInteractionDraft {
+  readonly type: 'polygon'
+  readonly points: readonly Point[]
+  readonly labelId: string
+}
+
+export interface VectorInteractionDraft {
+  readonly type: 'vector'
+  readonly annotationId: string
+  readonly geometry: RectGeometry | PolygonGeometry
+  readonly labelId: string
+}
+
+export type InteractionDraft =
+  | PolygonInteractionDraft
+  | RectInteractionDraft
+  | VectorInteractionDraft
 
 export interface ToolContext {
   readonly annotator: Annotator
@@ -33,6 +54,7 @@ export interface Tool {
     context: ToolContext,
   ) => void
   readonly cancel: (context: ToolContext) => void
+  readonly handleKey?: (event: KeyboardEvent, context: ToolContext) => void
 }
 
 export interface ToolController {
