@@ -5,6 +5,29 @@ export {
 } from './core/annotator.js'
 
 export {
+  addPolygon,
+  addRect,
+  canRedo,
+  canUndo,
+  redo,
+  removeAnnotation,
+  undo,
+  updateAnnotation,
+  type AddPolygonInput,
+  type AddRectInput,
+} from './core/commands.js'
+
+export {
+  subscribe,
+  type AnnotatorErrorEvent,
+  type AnnotatorEventListener,
+  type AnnotatorEventMap,
+  type AnnotatorEventName,
+  type ChangeEvent,
+  type ChangeKind,
+} from './core/events.js'
+
+export {
   AnnotatorError,
   type Annotation,
   type AnnotationBase,
@@ -47,3 +70,9 @@ export {
   type ViewportOptions,
   type ViewportState,
 } from './viewport/viewport.js'
+
+export {
+  addLabel,
+  getActiveLabel,
+  setActiveLabel,
+} from './labels/labels.js'

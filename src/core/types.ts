@@ -56,7 +56,12 @@ export interface AnnotationSnapshot {
   readonly labels: readonly LabelDefinition[]
 }
 
-export type AnnotatorErrorCode = 'ANNOTATOR_DESTROYED' | 'INVALID_GEOMETRY'
+export type AnnotatorErrorCode =
+  | 'ANNOTATOR_DESTROYED'
+  | 'ANNOTATION_NOT_FOUND'
+  | 'DUPLICATE_LABEL'
+  | 'INVALID_GEOMETRY'
+  | 'UNKNOWN_LABEL'
 
 export class AnnotatorError extends Error {
   readonly code: AnnotatorErrorCode

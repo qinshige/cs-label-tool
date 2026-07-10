@@ -9,7 +9,7 @@ import {
 
 const states = new WeakMap<Annotator, InternalState>()
 
-function requireState(annotator: Annotator): InternalState {
+export function getInternalState(annotator: Annotator): InternalState {
   const state = states.get(annotator)
   if (state === undefined || state.destroyed) {
     throw new AnnotatorError(
@@ -32,10 +32,12 @@ export function destroyAnnotator(annotator: Annotator): void {
     return
   }
   state.destroyed = true
+  state.listeners.change.clear()
+  state.listeners.error.clear()
 }
 
 export function getSnapshot(annotator: Annotator): AnnotationSnapshot {
-  const state = requireState(annotator)
+  const state = getInternalState(annotator)
   return Object.freeze({
     schemaVersion: 1 as const,
     revision: state.revision,
