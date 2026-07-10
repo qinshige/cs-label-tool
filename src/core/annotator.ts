@@ -32,6 +32,14 @@ export function destroyAnnotator(annotator: Annotator): void {
     return
   }
   state.destroyed = true
+  state.imageAbortController?.abort()
+  state.renderer?.destroy()
+  state.imageSource?.dispose()
+  state.imageAbortController = null
+  state.renderer = null
+  state.imageSource = null
+  state.image = null
+  state.viewport = null
   state.listeners.change.clear()
   state.listeners.error.clear()
 }

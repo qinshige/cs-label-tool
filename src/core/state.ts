@@ -5,6 +5,9 @@ import type {
 } from './types.js'
 import type { EventListeners } from './events.js'
 import { createGridIndex, type GridIndex } from '../spatial/grid-index.js'
+import type { ImageSource, LoadedImage } from '../image/types.js'
+import type { CanvasRenderer } from '../render/canvas-renderer.js'
+import type { ViewportState } from '../viewport/viewport.js'
 
 export interface DomainContents {
   readonly annotations: readonly Annotation[]
@@ -31,6 +34,11 @@ export interface InternalState {
   undoStack: HistoryEntry[]
   redoStack: HistoryEntry[]
   readonly listeners: EventListeners
+  imageSource: ImageSource | null
+  image: LoadedImage | null
+  imageAbortController: AbortController | null
+  renderer: CanvasRenderer | null
+  viewport: ViewportState | null
 }
 
 export function createInternalState(options: AnnotatorOptions): InternalState {
@@ -50,5 +58,10 @@ export function createInternalState(options: AnnotatorOptions): InternalState {
       change: new Set(),
       error: new Set(),
     },
+    imageSource: null,
+    image: null,
+    imageAbortController: null,
+    renderer: null,
+    viewport: null,
   }
 }

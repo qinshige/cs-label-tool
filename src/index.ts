@@ -86,3 +86,21 @@ export {
   updateSpatialItem,
   type GridIndex,
 } from './spatial/grid-index.js'
+
+export {
+  clientToImage,
+  fitToScreen,
+  imageToClient,
+  panBy,
+  resizeViewport,
+  setImageSource,
+  zoomTo,
+} from './image/image-commands.js'
+
+export { createStandardImageSource } from './image/standard-source.js'
+
+export type {
+  ImageSource,
+  LoadedImage,
+  StandardImageInput,
+} from './image/types.js'
