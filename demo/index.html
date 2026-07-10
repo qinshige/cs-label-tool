@@ -6,15 +6,173 @@
     <link rel="icon" href="../public/favicon.ico" />
     <title>cs-label-tool 演示</title>
     <style>
-      html, body, #app {
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
         width: 100%;
         height: 100%;
         margin: 0;
+        font: 14px/1.5 system-ui, -apple-system, sans-serif;
+        color: #e2e8f0;
+        background: #0f1419;
+      }
+
+      #app {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .demo-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px;
+        border-bottom: 1px solid #2a3039;
+      }
+
+      .demo-header h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #f8fafc;
+      }
+
+      .demo-header .stats {
+        display: flex;
+        gap: 14px;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+
+      .demo-header .stats span {
+        color: #f8fafc;
+        font-weight: 500;
+      }
+
+      .demo-main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 220px;
+        min-height: 0;
+      }
+
+      .demo-sidebar {
+        overflow: auto;
+        padding: 16px;
+        border-left: 1px solid #2a3039;
+        background: #151a21;
+      }
+
+      .demo-sidebar h2 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .demo-sidebar .shortcut {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        font-size: 13px;
+      }
+
+      .demo-sidebar .shortcut kbd {
+        padding: 1px 6px;
+        font-size: 11px;
+        font-family: inherit;
+        color: #94a3b8;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 3px;
+      }
+
+      .demo-sidebar .section {
+        margin-bottom: 18px;
+      }
+
+      .demo-sidebar .api-hint {
+        margin-top: 14px;
+        padding: 10px;
+        background: #1e293b;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+
+      .demo-sidebar .api-hint code {
+        color: #7dd3fc;
+      }
+
+      cs-annotator {
+        width: 100%;
+        height: 100%;
+      }
+
+      .demo-toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 18px;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 6px;
+        font-size: 13px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.25s;
+        z-index: 100;
+      }
+
+      .demo-toast.show {
+        opacity: 1;
       }
     </style>
   </head>
   <body>
-    <main id="app"></main>
+    <div id="app">
+      <header class="demo-header">
+        <h1>cs-label-tool · AI 图像标注引擎</h1>
+        <div class="stats">
+          标注数 <span id="anno-count">0</span>
+        </div>
+      </header>
+      <div class="demo-main">
+        <cs-annotator id="annotator"></cs-annotator>
+        <aside class="demo-sidebar">
+          <div class="section">
+            <h2>快捷键</h2>
+            <div class="shortcut"><span>选择工具</span> <kbd>S</kbd></div>
+            <div class="shortcut"><span>矩形工具</span> <kbd>R</kbd></div>
+            <div class="shortcut"><span>多边形工具</span> <kbd>P</kbd></div>
+            <div class="shortcut"><span>放大</span> <kbd>+</kbd></div>
+            <div class="shortcut"><span>缩小</span> <kbd>-</kbd></div>
+            <div class="shortcut"><span>适应屏幕</span> <kbd>F</kbd></div>
+            <div class="shortcut"><span>撤销</span> <kbd>Ctrl+Z</kbd></div>
+            <div class="shortcut"><span>重做</span> <kbd>Ctrl+Y</kbd></div>
+            <div class="shortcut"><span>删除选中</span> <kbd>Delete</kbd></div>
+          </div>
+          <div class="section">
+            <h2>多边形技巧</h2>
+            <div class="shortcut"><span>添加顶点</span> <kbd>Click</kbd></div>
+            <div class="shortcut"><span>闭合多边形</span> <kbd>Enter</kbd></div>
+            <div class="shortcut"><span>删除顶点</span> <kbd>Backspace</kbd></div>
+          </div>
+          <div class="api-hint">
+            查看 <code>demo/main.ts</code> 了解如何使用 headless API 和 Web Component 两种方式集成。
+          </div>
+        </aside>
+      </div>
+      <div class="demo-toast" id="toast"></div>
+    </div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
