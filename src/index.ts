@@ -10,6 +10,7 @@ export {
   canRedo,
   canUndo,
   redo,
+  queryAnnotations,
   removeAnnotation,
   undo,
   updateAnnotation,
@@ -76,3 +77,12 @@ export {
   getActiveLabel,
   setActiveLabel,
 } from './labels/labels.js'
+
+export {
+  createGridIndex,
+  insertSpatialItem,
+  querySpatialBounds,
+  removeSpatialItem,
+  updateSpatialItem,
+  type GridIndex,
+} from './spatial/grid-index.js'

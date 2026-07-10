@@ -11,12 +11,21 @@ import type {
 } from './types.js'
 import type { DomainContents, InternalState } from './state.js'
 import type { Point } from '../geometry/types.js'
+import type { Bounds } from '../geometry/types.js'
 import { validatePolygon } from '../geometry/polygon.js'
+import {
+  insertSpatialItem,
+  querySpatialBounds,
+  removeSpatialItem,
+  updateSpatialItem,
+  type GridIndex,
+} from '../spatial/grid-index.js'
 
 interface MutableDomainContents {
   annotations: Annotation[]
   labels: LabelDefinition[]
   activeLabelId: string | null
+  spatialIndex: GridIndex
 }
 
 export interface AddRectInput extends Omit<RectGeometry, 'type'> {
@@ -33,6 +42,7 @@ function captureDomain(state: InternalState): DomainContents {
     annotations: [...state.annotations],
     labels: [...state.labels],
     activeLabelId: state.activeLabelId,
+    spatialIndex: state.spatialIndex,
   }
 }
 
@@ -41,6 +51,7 @@ function createDraft(contents: DomainContents): MutableDomainContents {
     annotations: [...contents.annotations],
     labels: [...contents.labels],
     activeLabelId: contents.activeLabelId,
+    spatialIndex: contents.spatialIndex,
   }
 }
 
@@ -48,6 +59,10 @@ function applyDomain(state: InternalState, contents: DomainContents): void {
   state.annotations = [...contents.annotations]
   state.labels = [...contents.labels]
   state.activeLabelId = contents.activeLabelId
+  state.spatialIndex = contents.spatialIndex
+  state.annotationsById = new Map(
+    contents.annotations.map(annotation => [annotation.id, annotation]),
+  )
 }
 
 export function executeDomainMutation<T>(
@@ -63,6 +78,7 @@ export function executeDomainMutation<T>(
     annotations: draft.annotations,
     labels: draft.labels,
     activeLabelId: draft.activeLabelId,
+    spatialIndex: draft.spatialIndex,
   }
 
   applyDomain(state, after)
@@ -130,6 +146,24 @@ function validateGeometry(geometry: RectGeometry | PolygonGeometry): void {
   }
 }
 
+function getGeometryBounds(
+  geometry: RectGeometry | PolygonGeometry,
+): Bounds {
+  if (geometry.type === 'rect') {
+    return geometry
+  }
+  const xs = geometry.points.map(([x]) => x)
+  const ys = geometry.points.map(([, y]) => y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return {
+    x,
+    y,
+    width: Math.max(...xs) - x,
+    height: Math.max(...ys) - y,
+  }
+}
+
 export function addRect(annotator: Annotator, input: AddRectInput): string {
   return executeDomainMutation(annotator, 'annotation:add', draft => {
     requireLabel(draft, input.labelId)
@@ -146,6 +180,11 @@ export function addRect(annotator: Annotator, input: AddRectInput): string {
       geometry,
     }
     draft.annotations.push(annotation)
+    draft.spatialIndex = insertSpatialItem(
+      draft.spatialIndex,
+      annotation.id,
+      getGeometryBounds(annotation.geometry),
+    )
     return annotation.id
   })
 }
@@ -166,6 +205,11 @@ export function addPolygon(
       geometry,
     }
     draft.annotations.push(annotation)
+    draft.spatialIndex = insertSpatialItem(
+      draft.spatialIndex,
+      annotation.id,
+      getGeometryBounds(annotation.geometry),
+    )
     return annotation.id
   })
 }
@@ -197,6 +241,11 @@ export function updateAnnotation(
       revision: annotation.revision + 1,
       updatedAt: Date.now(),
     } as Annotation
+    draft.spatialIndex = updateSpatialItem(
+      draft.spatialIndex,
+      id,
+      getGeometryBounds(geometry),
+    )
   })
 }
 
@@ -207,6 +256,7 @@ export function removeAnnotation(annotator: Annotator, id: string): boolean {
   }
   return executeDomainMutation(annotator, 'annotation:remove', draft => {
     draft.annotations = draft.annotations.filter(annotation => annotation.id !== id)
+    draft.spatialIndex = removeSpatialItem(draft.spatialIndex, id)
     return true
   })
 }
@@ -243,4 +293,14 @@ export function redo(annotator: Annotator): boolean {
   state.revision += 1
   emitChange(annotator, 'history:redo')
   return true
+}
+
+export function queryAnnotations(
+  annotator: Annotator,
+  bounds: Bounds,
+): Annotation[] {
+  const state = getInternalState(annotator)
+  return querySpatialBounds(state.spatialIndex, bounds)
+    .map(id => state.annotationsById.get(id))
+    .filter((annotation): annotation is Annotation => annotation !== undefined)
 }
