@@ -42,7 +42,12 @@
       })
       const polygonId = addPolygon(annotator, {
         labelId: 'object',
-        points: [{ x: 500, y: 100 }, { x: 600, y: 100 }, { x: 550, y: 220 }],
+        points: [
+          { x: 500, y: 100 },
+          { x: 600, y: 100 },
+          { x: 600, y: 220 },
+          { x: 500, y: 220 },
+        ],
       })
 
       document.querySelector('#select').addEventListener('click', () => useSelect(annotator))

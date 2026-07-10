@@ -47,4 +47,18 @@ describe('polygon geometry', () => {
   test('accepts three finite unique points', () => {
     expect(validatePolygon(triangle)).toEqual({ valid: true })
   })
+
+  test('rejects zero-area and self-intersecting polygons', () => {
+    expect(validatePolygon([
+      { x: 0, y: 0 },
+      { x: 10, y: 10 },
+      { x: 20, y: 20 },
+    ])).toEqual({ valid: false, reason: 'ZERO_AREA' })
+    expect(validatePolygon([
+      { x: 0, y: 0 },
+      { x: 20, y: 20 },
+      { x: 0, y: 20 },
+      { x: 20, y: 0 },
+    ])).toEqual({ valid: false, reason: 'SELF_INTERSECTION' })
+  })
 })

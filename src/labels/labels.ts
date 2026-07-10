@@ -1,5 +1,4 @@
-import { executeDomainMutation } from '../core/commands.js'
-import { emitChange } from '../core/events.js'
+import { commitDomainCommand } from '../core/commands.js'
 import { getInternalState } from '../core/annotator.js'
 import { AnnotatorError } from '../core/types.js'
 import type { Annotator, LabelDefinition } from '../core/types.js'
@@ -8,18 +7,30 @@ export function addLabel(
   annotator: Annotator,
   label: LabelDefinition,
 ): void {
-  executeDomainMutation(annotator, 'label:add', draft => {
-    if (draft.labels.some(existing => existing.id === label.id)) {
-      throw new AnnotatorError(
-        'DUPLICATE_LABEL',
-        `Label already exists: ${label.id}`,
-      )
-    }
-    draft.labels.push(Object.freeze({ ...label }))
-    if (draft.activeLabelId === null) {
-      draft.activeLabelId = label.id
-    }
-  })
+  const state = getInternalState(annotator)
+  if (state.labels.some(existing => existing.id === label.id)) {
+    throw new AnnotatorError(
+      'DUPLICATE_LABEL',
+      `Label already exists: ${label.id}`,
+    )
+  }
+  const storedLabel = Object.freeze({ ...label })
+  const index = state.labels.length
+  const previousActiveLabel = state.activeLabelId
+  commitDomainCommand(
+    annotator,
+    'label:add',
+    current => {
+      current.labels.splice(index, 0, storedLabel)
+      if (previousActiveLabel === null) {
+        current.activeLabelId = storedLabel.id
+      }
+    },
+    current => {
+      current.labels.splice(index, 1)
+      current.activeLabelId = previousActiveLabel
+    },
+  )
 }
 
 export function setActiveLabel(annotator: Annotator, labelId: string): void {
@@ -27,8 +38,13 @@ export function setActiveLabel(annotator: Annotator, labelId: string): void {
   if (!state.labels.some(label => label.id === labelId)) {
     throw new AnnotatorError('UNKNOWN_LABEL', `Unknown label: ${labelId}`)
   }
-  state.activeLabelId = labelId
-  emitChange(annotator, 'label:activate')
+  const previousActiveLabel = state.activeLabelId
+  commitDomainCommand(
+    annotator,
+    'label:activate',
+    current => { current.activeLabelId = labelId },
+    current => { current.activeLabelId = previousActiveLabel },
+  )
 }
 
 export function getActiveLabel(annotator: Annotator): string | null {

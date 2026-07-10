@@ -11,6 +11,7 @@
         addLabel,
         createStandardImageSource,
         getSnapshot,
+        getZoom,
         mountAnnotator,
         setImageSource,
         unmountAnnotator,
@@ -22,12 +23,21 @@
         name: 'Person',
         color: '#ff4d4f',
       })
+      const editor = document.querySelector('cs-annotator')
+      window.controlsDisabledBeforeImage = [
+        'Rectangle',
+        'Polygon',
+        'Zoom in',
+        'Zoom out',
+        'Fit',
+      ].every(name => editor.shadowRoot.querySelector(`[aria-label="${name}"]`)?.disabled)
       const image = 'data:image/svg+xml,' + encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="white"/></svg>',
       )
       await setImageSource(annotator, createStandardImageSource(image))
       window.testAnnotator = annotator
       window.getTestSnapshot = () => getSnapshot(annotator)
+      window.getTestZoom = () => getZoom(annotator)
       window.unmountTestAnnotator = () => unmountAnnotator('#app')
       document.documentElement.dataset.ready = 'true'
     </script>

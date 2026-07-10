@@ -1,5 +1,5 @@
 import { normalizeRect, pointInRect } from '../geometry/rect.js'
-import { pointInPolygon } from '../geometry/polygon.js'
+import { pointInPolygon, validatePolygon } from '../geometry/polygon.js'
 import type { Bounds, Point } from '../geometry/types.js'
 import {
   AnnotatorError,
@@ -10,6 +10,7 @@ import {
 } from '../core/types.js'
 import {
   queryAnnotations,
+  removeAnnotation,
   updateAnnotation,
 } from '../core/commands.js'
 import { getInternalState } from '../core/annotator.js'
@@ -52,6 +53,20 @@ export function movePolygonVertex(
       currentIndex === index ? [point.x, point.y] as const : current,
     ),
   }
+}
+
+export function removePolygonVertex(
+  geometry: PolygonGeometry,
+  index: number,
+): PolygonGeometry | null {
+  if (geometry.points.length <= 3) {
+    return null
+  }
+  const points = geometry.points.filter((_, currentIndex) => currentIndex !== index)
+  const candidate: PolygonGeometry = { type: 'polygon', points }
+  return validatePolygon(points.map(([x, y]) => ({ x, y }))).valid
+    ? candidate
+    : null
 }
 
 export function resizeRect(
@@ -131,6 +146,22 @@ function sameGeometry(
   second: RectGeometry | PolygonGeometry,
 ): boolean {
   return JSON.stringify(first) === JSON.stringify(second)
+}
+
+function polygonVertexIsSeparated(
+  geometry: PolygonGeometry,
+  index: number,
+  minimumDistance: number,
+): boolean {
+  const minimumSquared = minimumDistance * minimumDistance
+  const point = geometry.points[index]
+  return point !== undefined && geometry.points.every(
+    ([x, y], otherIndex) =>
+      index === otherIndex || squaredDistance(
+        { x: point[0], y: point[1] },
+        { x, y },
+      ) >= minimumSquared,
+  )
 }
 
 type DragMode =
@@ -216,6 +247,7 @@ export function getSelection(annotator: Annotator): readonly string[] {
 
 export function createSelectTool(): Tool {
   let state: SelectState = { phase: 'idle' }
+  let selectedVertex: { annotationId: string; index: number } | null = null
 
   return {
     id: 'select',
@@ -252,10 +284,14 @@ export function createSelectTool(): Tool {
             : findHandleMode(annotation, input.imagePoint, tolerance) ?? { type: 'move' }
         }
         if (annotation === undefined || mode === null) {
+          selectedVertex = null
           clearSelection(context.annotator)
           return
         }
         selectAnnotation(context.annotator, annotation.id)
+        selectedVertex = mode.type === 'polygon-vertex'
+          ? { annotationId: annotation.id, index: mode.index }
+          : null
         state = {
           phase: 'dragging',
           pointerId: input.pointerId,
@@ -280,14 +316,62 @@ export function createSelectTool(): Tool {
         })
         return
       }
-      if (!sameGeometry(state.annotation.geometry, geometry)) {
+      const minimumImageSize = 1 / (
+        getInternalState(context.annotator).viewport?.scale ?? 1
+      )
+      const valid = geometry.type === 'rect'
+        ? geometry.width >= minimumImageSize &&
+          geometry.height >= minimumImageSize
+        : validatePolygon(
+            geometry.points.map(([x, y]) => ({ x, y })),
+          ).valid && (
+            state.mode.type !== 'polygon-vertex' ||
+            polygonVertexIsSeparated(
+              geometry,
+              state.mode.index,
+              minimumImageSize,
+            )
+          )
+      if (valid && !sameGeometry(state.annotation.geometry, geometry)) {
         updateAnnotation(context.annotator, state.annotation.id, geometry)
       }
       state = { phase: 'idle' }
       context.clearDraft()
     },
+    handleKey(event, context) {
+      const internal = getInternalState(context.annotator)
+      const selectedId = internal.selectedIds[0]
+      if (event.key === 'Delete' && selectedId !== undefined) {
+        event.preventDefault()
+        removeAnnotation(context.annotator, selectedId)
+        selectedVertex = null
+        clearSelection(context.annotator)
+        return
+      }
+      if (event.key === 'Backspace') {
+        event.preventDefault()
+      }
+      if (event.key === 'Backspace' && selectedVertex !== null) {
+        const annotation = internal.annotationsById.get(
+          selectedVertex.annotationId,
+        )
+        if (annotation?.geometry.type !== 'polygon') {
+          return
+        }
+        const geometry = removePolygonVertex(
+          annotation.geometry,
+          selectedVertex.index,
+        )
+        if (geometry !== null) {
+          updateAnnotation(context.annotator, annotation.id, geometry)
+          selectedVertex = null
+          context.clearDraft()
+        }
+      }
+    },
     cancel(context) {
       state = { phase: 'idle' }
+      selectedVertex = null
       context.clearDraft()
     },
   }

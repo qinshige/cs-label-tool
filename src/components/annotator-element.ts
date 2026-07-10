@@ -11,7 +11,7 @@ import {
 } from '../core/annotator.js'
 import { subscribe } from '../core/events.js'
 import type { Annotator, AnnotatorOptions } from '../core/types.js'
-import { fitToScreen } from '../image/image-commands.js'
+import { fitToScreen, hasImage, zoomBy } from '../image/image-commands.js'
 import { getActiveLabel, setActiveLabel } from '../labels/labels.js'
 import { usePolygon } from '../tools/polygon-tool.js'
 import { useRect } from '../tools/rect-tool.js'
@@ -42,12 +42,14 @@ export class CSAnnotatorElement extends HTMLElementBase {
       <style>${annotatorStyles}</style>
       <div part="shell">
         <div part="toolbar" role="toolbar" aria-label="Annotation tools">
-          <button type="button" data-action="select" aria-pressed="false">Select</button>
-          <button type="button" data-action="rect" aria-pressed="false">Rectangle</button>
-          <button type="button" data-action="polygon" aria-pressed="false">Polygon</button>
-          <button type="button" data-action="fit">Fit</button>
-          <button type="button" data-action="undo">Undo</button>
-          <button type="button" data-action="redo">Redo</button>
+          <button type="button" data-action="select" aria-label="Select" aria-pressed="false">Select</button>
+          <button type="button" data-action="rect" aria-label="Rectangle" aria-pressed="false">Rectangle</button>
+          <button type="button" data-action="polygon" aria-label="Polygon" aria-pressed="false">Polygon</button>
+          <button type="button" data-action="zoom-in" aria-label="Zoom in">Zoom in</button>
+          <button type="button" data-action="zoom-out" aria-label="Zoom out">Zoom out</button>
+          <button type="button" data-action="fit" aria-label="Fit">Fit</button>
+          <button type="button" data-action="undo" aria-label="Undo">Undo</button>
+          <button type="button" data-action="redo" aria-label="Redo">Redo</button>
         </div>
         <div part="workspace">
           <div part="viewport" role="region" aria-label="Annotation viewport"></div>
@@ -125,6 +127,10 @@ export class CSAnnotatorElement extends HTMLElementBase {
         this.#setActiveTool('polygon')
       } else if (action === 'fit') {
         fitToScreen(annotator)
+      } else if (action === 'zoom-in') {
+        zoomBy(annotator, 1.25)
+      } else if (action === 'zoom-out') {
+        zoomBy(annotator, 0.8)
       } else if (action === 'undo') {
         undo(annotator)
       } else if (action === 'redo') {
@@ -152,13 +158,14 @@ export class CSAnnotatorElement extends HTMLElementBase {
   #refreshControls(): void {
     const annotator = this.#annotator
     const enabled = annotator !== null
+    const imageLoaded = enabled && hasImage(annotator)
     for (const [action, button] of this.#buttons) {
       if (action === 'undo') {
         button.disabled = !enabled || !canUndo(annotator as Annotator)
       } else if (action === 'redo') {
         button.disabled = !enabled || !canRedo(annotator as Annotator)
       } else {
-        button.disabled = !enabled
+        button.disabled = !imageLoaded
       }
     }
     this.#setActiveTool(this.#activeTool ?? '')

@@ -5,6 +5,8 @@ declare global {
     getTestSnapshot: (annotator?: Annotator) => AnnotationSnapshot
     testAnnotator: Annotator
     unmountTestAnnotator: () => void
+    controlsDisabledBeforeImage: boolean
+    getTestZoom: () => number
     vectorTest: {
       ids: { rectId: string; polygonId: string }
       pointToClient: (point: { x: number; y: number }) => { x: number; y: number }

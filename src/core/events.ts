@@ -7,6 +7,7 @@ export type ChangeKind =
   | 'annotation:update'
   | 'history:redo'
   | 'history:undo'
+  | 'image:load'
   | 'label:activate'
   | 'label:add'
 

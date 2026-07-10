@@ -90,10 +90,13 @@ export {
 export {
   clientToImage,
   fitToScreen,
+  getZoom,
+  hasImage,
   imageToClient,
   panBy,
   resizeViewport,
   setImageSource,
+  zoomBy,
   zoomTo,
 } from './image/image-commands.js'
 
@@ -146,6 +149,7 @@ export {
   getSelection,
   movePolygonVertex,
   moveRect,
+  removePolygonVertex,
   resizeRect,
   selectAnnotation,
   useSelect,

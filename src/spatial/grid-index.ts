@@ -2,10 +2,10 @@ import type { Bounds } from '../geometry/types.js'
 
 export interface GridIndex {
   readonly cellSize: number
-  readonly cells: ReadonlyMap<string, ReadonlySet<string>>
-  readonly items: ReadonlyMap<string, Bounds>
-  readonly order: ReadonlyMap<string, number>
-  readonly nextOrder: number
+  readonly cells: Map<string, Set<string>>
+  readonly items: Map<string, Bounds>
+  readonly order: Map<string, number>
+  nextOrder: number
 }
 
 function assertBounds(bounds: Bounds): void {
@@ -37,36 +37,32 @@ function getCellKeys(cellSize: number, bounds: Bounds): string[] {
   return keys
 }
 
-function withoutItem(
-  index: GridIndex,
-  id: string,
-): Map<string, ReadonlySet<string>> {
-  const cells = new Map(index.cells)
+function removeFromCells(index: GridIndex, id: string): void {
   const bounds = index.items.get(id)
   if (bounds === undefined) {
-    return cells
+    return
   }
 
   for (const key of getCellKeys(index.cellSize, bounds)) {
-    const occupants = new Set(cells.get(key))
+    const occupants = index.cells.get(key)
+    if (occupants === undefined) {
+      continue
+    }
     occupants.delete(id)
     if (occupants.size === 0) {
-      cells.delete(key)
-    } else {
-      cells.set(key, occupants)
+      index.cells.delete(key)
     }
   }
-  return cells
 }
 
 function addToCells(
-  cells: Map<string, ReadonlySet<string>>,
+  cells: Map<string, Set<string>>,
   cellSize: number,
   id: string,
   bounds: Bounds,
 ): void {
   for (const key of getCellKeys(cellSize, bounds)) {
-    const occupants = new Set(cells.get(key))
+    const occupants = cells.get(key) ?? new Set<string>()
     occupants.add(id)
     cells.set(key, occupants)
   }
@@ -104,19 +100,11 @@ export function insertSpatialItem(
     return updateSpatialItem(index, id, bounds)
   }
 
-  const cells = new Map(index.cells)
-  addToCells(cells, index.cellSize, id, bounds)
-  const items = new Map(index.items)
-  items.set(id, bounds)
-  const order = new Map(index.order)
-  order.set(id, index.nextOrder)
-  return {
-    ...index,
-    cells,
-    items,
-    order,
-    nextOrder: index.nextOrder + 1,
-  }
+  addToCells(index.cells, index.cellSize, id, bounds)
+  index.items.set(id, { ...bounds })
+  index.order.set(id, index.nextOrder)
+  index.nextOrder += 1
+  return index
 }
 
 export function updateSpatialItem(
@@ -129,23 +117,31 @@ export function updateSpatialItem(
     return insertSpatialItem(index, id, bounds)
   }
 
-  const cells = withoutItem(index, id)
-  addToCells(cells, index.cellSize, id, bounds)
-  const items = new Map(index.items)
-  items.set(id, bounds)
-  return { ...index, cells, items }
+  removeFromCells(index, id)
+  addToCells(index.cells, index.cellSize, id, bounds)
+  index.items.set(id, { ...bounds })
+  return index
 }
 
 export function removeSpatialItem(index: GridIndex, id: string): GridIndex {
   if (!index.items.has(id)) {
     return index
   }
-  const cells = withoutItem(index, id)
-  const items = new Map(index.items)
-  const order = new Map(index.order)
-  items.delete(id)
-  order.delete(id)
-  return { ...index, cells, items, order }
+  removeFromCells(index, id)
+  index.items.delete(id)
+  index.order.delete(id)
+  return index
+}
+
+export function restoreSpatialItem(
+  index: GridIndex,
+  id: string,
+  bounds: Bounds,
+  order: number,
+): GridIndex {
+  insertSpatialItem(index, id, bounds)
+  index.order.set(id, order)
+  return index
 }
 
 export function querySpatialBounds(

@@ -4,6 +4,7 @@ import {
   movePolygonVertex,
   moveRect,
   resizeRect,
+  removePolygonVertex,
 } from '../../src/tools/select-tool.js'
 
 describe('vector editing geometry', () => {
@@ -28,5 +29,16 @@ describe('vector editing geometry', () => {
       'north-west',
       { x: 5, y: 15 },
     )).toEqual({ type: 'rect', x: 5, y: 15, width: 35, height: 45 })
+  })
+
+  test('removes a polygon vertex only when three valid points remain', () => {
+    expect(removePolygonVertex(
+      { type: 'polygon', points: [[0, 0], [20, 0], [20, 20], [0, 20]] },
+      1,
+    )).toEqual({ type: 'polygon', points: [[0, 0], [20, 20], [0, 20]] })
+    expect(removePolygonVertex(
+      { type: 'polygon', points: [[0, 0], [20, 0], [0, 20]] },
+      1,
+    )).toBeNull()
   })
 })

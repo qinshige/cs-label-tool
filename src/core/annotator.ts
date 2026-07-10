@@ -6,6 +6,7 @@ import {
   type Annotator,
   type AnnotatorOptions,
 } from './types.js'
+import { cloneAnnotation } from './immutability.js'
 
 const states = new WeakMap<Annotator, InternalState>()
 
@@ -54,7 +55,9 @@ export function getSnapshot(annotator: Annotator): AnnotationSnapshot {
   return Object.freeze({
     schemaVersion: 1 as const,
     revision: state.revision,
-    annotations: Object.freeze([...state.annotations]),
-    labels: Object.freeze([...state.labels]),
+    annotations: Object.freeze(state.annotations.map(cloneAnnotation)),
+    labels: Object.freeze(
+      state.labels.map(label => Object.freeze({ ...label })),
+    ),
   })
 }

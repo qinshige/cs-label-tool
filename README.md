@@ -49,7 +49,7 @@ await setImageSource(
 )
 ```
 
-默认 UI 提供选择、矩形、多边形、适屏、撤销、重做和标签切换控件。
+默认 UI 提供选择、矩形、多边形、放大、缩小、适屏、撤销、重做和标签切换控件。图片加载前，依赖画布的控件会保持禁用。
 
 ## Headless 函数式 API
 
@@ -58,11 +58,13 @@ import {
   createAnnotator,
   createStandardImageSource,
   fitToScreen,
+  getZoom,
   panBy,
   setImageSource,
   usePolygon,
   useRect,
   useSelect,
+  zoomBy,
   zoomTo,
 } from 'cs-label-tool'
 
@@ -80,6 +82,8 @@ useRect(annotator, { labelId: 'person' })
 usePolygon(annotator, { labelId: 'person' })
 fitToScreen(annotator)
 zoomTo(annotator, 2)
+zoomBy(annotator, 1.25)
+console.log(getZoom(annotator))
 panBy(annotator, { x: 100, y: 50 })
 ```
 
@@ -121,6 +125,8 @@ updateAnnotation(annotator, rectId, {
 })
 removeAnnotation(annotator, polygonId)
 ```
+
+选择工具激活后，`Delete` 删除当前标注；选中多边形顶点后，`Backspace` 删除该顶点（多边形始终至少保留 3 个有效顶点）。
 
 ## 事件和生命周期
 

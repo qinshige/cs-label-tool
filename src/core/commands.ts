@@ -1,32 +1,24 @@
-import { emitChange, type ChangeKind } from './events.js'
-import { getInternalState } from './annotator.js'
-import { AnnotatorError } from './types.js'
-import type {
-  Annotation,
-  AnnotationBase,
-  Annotator,
-  LabelDefinition,
-  PolygonGeometry,
-  RectGeometry,
-} from './types.js'
-import type { DomainContents, InternalState } from './state.js'
-import type { Point } from '../geometry/types.js'
-import type { Bounds } from '../geometry/types.js'
+import type { Bounds, Point } from '../geometry/types.js'
 import { validatePolygon } from '../geometry/polygon.js'
 import {
   insertSpatialItem,
   querySpatialBounds,
   removeSpatialItem,
+  restoreSpatialItem,
   updateSpatialItem,
-  type GridIndex,
 } from '../spatial/grid-index.js'
-
-interface MutableDomainContents {
-  annotations: Annotation[]
-  labels: LabelDefinition[]
-  activeLabelId: string | null
-  spatialIndex: GridIndex
-}
+import { getInternalState } from './annotator.js'
+import { emitChange, type ChangeKind } from './events.js'
+import { cloneAnnotation } from './immutability.js'
+import type { HistoryEntry, InternalState } from './state.js'
+import { AnnotatorError } from './types.js'
+import type {
+  Annotation,
+  AnnotationBase,
+  Annotator,
+  PolygonGeometry,
+  RectGeometry,
+} from './types.js'
 
 export interface AddRectInput extends Omit<RectGeometry, 'type'> {
   readonly labelId: string
@@ -37,63 +29,34 @@ export interface AddPolygonInput {
   readonly points: readonly Point[]
 }
 
-function captureDomain(state: InternalState): DomainContents {
-  return {
-    annotations: [...state.annotations],
-    labels: [...state.labels],
-    activeLabelId: state.activeLabelId,
-    spatialIndex: state.spatialIndex,
-  }
-}
-
-function createDraft(contents: DomainContents): MutableDomainContents {
-  return {
-    annotations: [...contents.annotations],
-    labels: [...contents.labels],
-    activeLabelId: contents.activeLabelId,
-    spatialIndex: contents.spatialIndex,
-  }
-}
-
-function applyDomain(state: InternalState, contents: DomainContents): void {
-  state.annotations = [...contents.annotations]
-  state.labels = [...contents.labels]
-  state.activeLabelId = contents.activeLabelId
-  state.spatialIndex = contents.spatialIndex
-  state.annotationsById = new Map(
-    contents.annotations.map(annotation => [annotation.id, annotation]),
-  )
-}
-
-export function executeDomainMutation<T>(
+function recordHistory(
   annotator: Annotator,
   kind: ChangeKind,
-  mutate: (draft: MutableDomainContents) => T,
-): T {
+  entry: HistoryEntry,
+): void {
   const state = getInternalState(annotator)
-  const before = captureDomain(state)
-  const draft = createDraft(before)
-  const result = mutate(draft)
-  const after: DomainContents = {
-    annotations: draft.annotations,
-    labels: draft.labels,
-    activeLabelId: draft.activeLabelId,
-    spatialIndex: draft.spatialIndex,
-  }
-
-  applyDomain(state, after)
   state.revision += 1
-  state.undoStack.push({ before, after })
+  state.undoStack.push(entry)
   if (state.undoStack.length > state.historyLimit) {
     state.undoStack.shift()
   }
   state.redoStack = []
   emitChange(annotator, kind)
-  return result
 }
 
-function requireLabel(draft: MutableDomainContents, labelId: string): void {
-  if (!draft.labels.some(label => label.id === labelId)) {
+export function commitDomainCommand(
+  annotator: Annotator,
+  kind: ChangeKind,
+  redo: (state: InternalState) => void,
+  undo: (state: InternalState) => void,
+): void {
+  const state = getInternalState(annotator)
+  redo(state)
+  recordHistory(annotator, kind, { undo, redo })
+}
+
+function requireLabel(state: InternalState, labelId: string): void {
+  if (!state.labels.some(label => label.id === labelId)) {
     throw new AnnotatorError('UNKNOWN_LABEL', `Unknown label: ${labelId}`)
   }
 }
@@ -152,66 +115,94 @@ function getGeometryBounds(
   if (geometry.type === 'rect') {
     return geometry
   }
-  const xs = geometry.points.map(([x]) => x)
-  const ys = geometry.points.map(([, y]) => y)
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return {
-    x,
-    y,
-    width: Math.max(...xs) - x,
-    height: Math.max(...ys) - y,
+  let minX = Number.POSITIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (const [x, y] of geometry.points) {
+    minX = Math.min(minX, x)
+    minY = Math.min(minY, y)
+    maxX = Math.max(maxX, x)
+    maxY = Math.max(maxY, y)
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+function insertAnnotation(
+  state: InternalState,
+  annotation: Annotation,
+  index = state.annotations.length,
+  order?: number,
+): void {
+  state.annotations.splice(index, 0, annotation)
+  state.annotationsById.set(annotation.id, annotation)
+  const bounds = getGeometryBounds(annotation.geometry)
+  if (order === undefined) {
+    insertSpatialItem(state.spatialIndex, annotation.id, bounds)
+  } else {
+    restoreSpatialItem(state.spatialIndex, annotation.id, bounds, order)
   }
 }
 
+function deleteAnnotation(state: InternalState, id: string): void {
+  const index = state.annotations.findIndex(annotation => annotation.id === id)
+  if (index >= 0) {
+    state.annotations.splice(index, 1)
+  }
+  state.annotationsById.delete(id)
+  removeSpatialItem(state.spatialIndex, id)
+}
+
 export function addRect(annotator: Annotator, input: AddRectInput): string {
-  return executeDomainMutation(annotator, 'annotation:add', draft => {
-    requireLabel(draft, input.labelId)
-    const geometry: RectGeometry = {
-      type: 'rect',
-      x: input.x,
-      y: input.y,
-      width: input.width,
-      height: input.height,
-    }
-    validateRect(geometry)
-    const annotation: Annotation = {
-      ...createAnnotationBase(input.labelId),
-      geometry,
-    }
-    draft.annotations.push(annotation)
-    draft.spatialIndex = insertSpatialItem(
-      draft.spatialIndex,
-      annotation.id,
-      getGeometryBounds(annotation.geometry),
-    )
-    return annotation.id
+  const state = getInternalState(annotator)
+  requireLabel(state, input.labelId)
+  const geometry: RectGeometry = {
+    type: 'rect',
+    x: input.x,
+    y: input.y,
+    width: input.width,
+    height: input.height,
+  }
+  validateRect(geometry)
+  const annotation = cloneAnnotation({
+    ...createAnnotationBase(input.labelId),
+    geometry,
   })
+  const index = state.annotations.length
+
+  commitDomainCommand(
+    annotator,
+    'annotation:add',
+    current => insertAnnotation(current, annotation, index),
+    current => deleteAnnotation(current, annotation.id),
+  )
+  return annotation.id
 }
 
 export function addPolygon(
   annotator: Annotator,
   input: AddPolygonInput,
 ): string {
-  return executeDomainMutation(annotator, 'annotation:add', draft => {
-    requireLabel(draft, input.labelId)
-    const geometry: PolygonGeometry = {
-      type: 'polygon',
-      points: input.points.map(point => [point.x, point.y] as const),
-    }
-    validateGeometry(geometry)
-    const annotation: Annotation = {
-      ...createAnnotationBase(input.labelId),
-      geometry,
-    }
-    draft.annotations.push(annotation)
-    draft.spatialIndex = insertSpatialItem(
-      draft.spatialIndex,
-      annotation.id,
-      getGeometryBounds(annotation.geometry),
-    )
-    return annotation.id
+  const state = getInternalState(annotator)
+  requireLabel(state, input.labelId)
+  const geometry: PolygonGeometry = {
+    type: 'polygon',
+    points: input.points.map(point => [point.x, point.y] as const),
+  }
+  validateGeometry(geometry)
+  const annotation = cloneAnnotation({
+    ...createAnnotationBase(input.labelId),
+    geometry,
   })
+  const index = state.annotations.length
+
+  commitDomainCommand(
+    annotator,
+    'annotation:add',
+    current => insertAnnotation(current, annotation, index),
+    current => deleteAnnotation(current, annotation.id),
+  )
+  return annotation.id
 }
 
 export function updateAnnotation(
@@ -219,46 +210,65 @@ export function updateAnnotation(
   id: string,
   geometry: RectGeometry | PolygonGeometry,
 ): void {
-  executeDomainMutation(annotator, 'annotation:update', draft => {
-    validateGeometry(geometry)
-    const index = draft.annotations.findIndex(annotation => annotation.id === id)
-    const annotation = draft.annotations[index]
-    if (annotation === undefined) {
-      throw new AnnotatorError(
-        'ANNOTATION_NOT_FOUND',
-        `Annotation not found: ${id}`,
-      )
-    }
-    if (annotation.geometry.type !== geometry.type) {
-      throw new AnnotatorError(
-        'INVALID_GEOMETRY',
-        'Annotation geometry type cannot be changed.',
-      )
-    }
-    draft.annotations[index] = {
-      ...annotation,
-      geometry,
-      revision: annotation.revision + 1,
-      updatedAt: Date.now(),
-    } as Annotation
-    draft.spatialIndex = updateSpatialItem(
-      draft.spatialIndex,
-      id,
-      getGeometryBounds(geometry),
+  validateGeometry(geometry)
+  const state = getInternalState(annotator)
+  const previous = state.annotationsById.get(id)
+  if (previous === undefined) {
+    throw new AnnotatorError(
+      'ANNOTATION_NOT_FOUND',
+      `Annotation not found: ${id}`,
     )
-  })
+  }
+  if (previous.geometry.type !== geometry.type) {
+    throw new AnnotatorError(
+      'INVALID_GEOMETRY',
+      'Annotation geometry type cannot be changed.',
+    )
+  }
+  const next = cloneAnnotation({
+    ...previous,
+    geometry,
+    revision: previous.revision + 1,
+    updatedAt: Date.now(),
+  } as Annotation)
+  const index = state.annotations.findIndex(annotation => annotation.id === id)
+
+  const apply = (current: InternalState, annotation: Annotation) => {
+    current.annotations[index] = annotation
+    current.annotationsById.set(id, annotation)
+    updateSpatialItem(
+      current.spatialIndex,
+      id,
+      getGeometryBounds(annotation.geometry),
+    )
+  }
+  commitDomainCommand(
+    annotator,
+    'annotation:update',
+    current => apply(current, next),
+    current => apply(current, previous),
+  )
 }
 
 export function removeAnnotation(annotator: Annotator, id: string): boolean {
   const state = getInternalState(annotator)
-  if (!state.annotations.some(annotation => annotation.id === id)) {
+  const annotation = state.annotationsById.get(id)
+  if (annotation === undefined) {
     return false
   }
-  return executeDomainMutation(annotator, 'annotation:remove', draft => {
-    draft.annotations = draft.annotations.filter(annotation => annotation.id !== id)
-    draft.spatialIndex = removeSpatialItem(draft.spatialIndex, id)
-    return true
-  })
+  const index = state.annotations.findIndex(item => item.id === id)
+  const order = state.spatialIndex.order.get(id)
+  if (order === undefined) {
+    throw new Error(`Spatial index is missing annotation: ${id}`)
+  }
+
+  commitDomainCommand(
+    annotator,
+    'annotation:remove',
+    current => deleteAnnotation(current, id),
+    current => insertAnnotation(current, annotation, index, order),
+  )
+  return true
 }
 
 export function canUndo(annotator: Annotator): boolean {
@@ -275,7 +285,7 @@ export function undo(annotator: Annotator): boolean {
   if (entry === undefined) {
     return false
   }
-  applyDomain(state, entry.before)
+  entry.undo(state)
   state.redoStack.push(entry)
   state.revision += 1
   emitChange(annotator, 'history:undo')
@@ -288,7 +298,7 @@ export function redo(annotator: Annotator): boolean {
   if (entry === undefined) {
     return false
   }
-  applyDomain(state, entry.after)
+  entry.redo(state)
   state.undoStack.push(entry)
   state.revision += 1
   emitChange(annotator, 'history:redo')

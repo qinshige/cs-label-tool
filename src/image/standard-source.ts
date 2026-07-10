@@ -43,6 +43,8 @@ export function createStandardImageSource(
   input: StandardImageInput,
 ): ImageSource {
   let loadedImage: HTMLImageElement | null = null
+  let ownedBitmap: ImageBitmap | null = null
+  let bitmapPromise: Promise<ImageBitmap> | null = null
   let objectUrl: string | null = null
   let disposed = false
 
@@ -56,7 +58,15 @@ export function createStandardImageSource(
         throw createAbortError()
       }
       if (isImageBitmap(input)) {
-        return { source: input, width: input.width, height: input.height }
+        bitmapPromise ??= createImageBitmap(input)
+        const bitmap = await bitmapPromise
+        if (disposed || signal.aborted) {
+          bitmap.close()
+          bitmapPromise = null
+          throw createAbortError()
+        }
+        ownedBitmap = bitmap
+        return { source: bitmap, width: bitmap.width, height: bitmap.height }
       }
       if (loadedImage !== null) {
         return {
@@ -89,6 +99,8 @@ export function createStandardImageSource(
       }
       disposed = true
       loadedImage = null
+      ownedBitmap?.close()
+      ownedBitmap = null
       if (objectUrl !== null) {
         URL.revokeObjectURL(objectUrl)
         objectUrl = null

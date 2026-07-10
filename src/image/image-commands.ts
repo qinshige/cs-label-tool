@@ -1,4 +1,5 @@
 import { getInternalState } from '../core/annotator.js'
+import { emitChange } from '../core/events.js'
 import type { Annotator } from '../core/types.js'
 import type { Point, Size } from '../geometry/types.js'
 import { createCanvasRenderer } from '../render/canvas-renderer.js'
@@ -55,6 +56,15 @@ export async function setImageSource(
   currentState.renderer.resize()
   currentState.renderer.invalidate('image')
   currentState.renderer.invalidate('annotations')
+  emitChange(annotator, 'image:load')
+}
+
+export function hasImage(annotator: Annotator): boolean {
+  return getInternalState(annotator).image !== null
+}
+
+export function getZoom(annotator: Annotator): number {
+  return requireViewport(annotator).viewport.scale
 }
 
 export function resizeViewport(annotator: Annotator): void {
@@ -87,6 +97,15 @@ export function zoomTo(
   )
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
+}
+
+export function zoomBy(
+  annotator: Annotator,
+  factor: number,
+  anchor?: Point,
+): void {
+  const { viewport } = requireViewport(annotator)
+  zoomTo(annotator, viewport.scale * factor, anchor)
 }
 
 export function panBy(annotator: Annotator, delta: Point): void {

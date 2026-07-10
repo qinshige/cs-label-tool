@@ -10,16 +10,9 @@ import type { CanvasRenderer } from '../render/canvas-renderer.js'
 import type { ViewportState } from '../viewport/viewport.js'
 import type { ToolController, InteractionDraft } from '../tools/types.js'
 
-export interface DomainContents {
-  readonly annotations: readonly Annotation[]
-  readonly labels: readonly LabelDefinition[]
-  readonly activeLabelId: string | null
-  readonly spatialIndex: GridIndex
-}
-
 export interface HistoryEntry {
-  readonly before: DomainContents
-  readonly after: DomainContents
+  readonly undo: (state: InternalState) => void
+  readonly redo: (state: InternalState) => void
 }
 
 export interface InternalState {

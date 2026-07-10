@@ -11,6 +11,7 @@ import {
   redo,
   removeAnnotation,
   setActiveLabel,
+  getActiveLabel,
   undo,
   updateAnnotation,
 } from '../../src/index.js'
@@ -87,5 +88,56 @@ describe('domain commands', () => {
     expect(undo(annotator)).toBe(true)
     expect(undo(annotator)).toBe(false)
     expect(getSnapshot(annotator).labels.map(label => label.id)).toEqual(['one'])
+  })
+
+  test('copies caller geometry before storing an update', () => {
+    const annotator = createTestAnnotator()
+    addLabel(annotator, { id: 'person', name: 'Person', color: '#ff4d4f' })
+    const id = addRect(annotator, {
+      labelId: 'person', x: 10, y: 20, width: 30, height: 40,
+    })
+    const geometry = {
+      type: 'rect' as const,
+      x: 50,
+      y: 60,
+      width: 70,
+      height: 80,
+    }
+
+    updateAnnotation(annotator, id, geometry)
+    geometry.x = 999
+
+    expect(getSnapshot(annotator).annotations[0]?.geometry).toEqual({
+      type: 'rect', x: 50, y: 60, width: 70, height: 80,
+    })
+  })
+
+  test('tracks active-label changes in revision and history', () => {
+    const annotator = createTestAnnotator()
+    addLabel(annotator, { id: 'one', name: 'One', color: '#111111' })
+    addLabel(annotator, { id: 'two', name: 'Two', color: '#222222' })
+    const revision = getSnapshot(annotator).revision
+
+    setActiveLabel(annotator, 'two')
+    expect(getActiveLabel(annotator)).toBe('two')
+    expect(getSnapshot(annotator).revision).toBe(revision + 1)
+    undo(annotator)
+    expect(getActiveLabel(annotator)).toBe('one')
+  })
+
+  test('rejects invalid polygon edits without changing domain state', () => {
+    const annotator = createTestAnnotator()
+    addLabel(annotator, { id: 'shape', name: 'Shape', color: '#333333' })
+    const id = addPolygon(annotator, {
+      labelId: 'shape',
+      points: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 10, y: 20 }],
+    })
+    const before = getSnapshot(annotator)
+
+    expect(() => updateAnnotation(annotator, id, {
+      type: 'polygon',
+      points: [[0, 0], [10, 10], [20, 20]],
+    })).toThrowError(/invalid polygon/i)
+    expect(getSnapshot(annotator)).toEqual(before)
   })
 })

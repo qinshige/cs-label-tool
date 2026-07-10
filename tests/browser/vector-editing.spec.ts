@@ -22,6 +22,8 @@ test('creates polygons and edits vectors in original-image coordinates', async (
   page,
 }) => {
   const pointerTolerance = 1.5
+  const pageErrors: Error[] = []
+  page.on('pageerror', error => pageErrors.push(error))
   await page.goto('/tests/fixtures/vector-editing.html')
   await expect(page.locator('html')).toHaveAttribute('data-ready', 'true')
   const ids = await page.evaluate(() => window.vectorTest.ids)
@@ -64,6 +66,18 @@ test('creates polygons and edits vectors in original-image coordinates', async (
   })
   await page.evaluate(() => window.vectorTest.redo())
 
+  const rectBeforeInvalidResize = await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.rectId,
+    )?.geometry,
+  )
+  await dragImagePoint(page, { x: 150, y: 130 }, { x: 350, y: 280 })
+  expect(await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.rectId,
+    )?.geometry,
+  )).toEqual(rectBeforeInvalidResize)
+
   const polygonCenter = await page.evaluate(() =>
     window.vectorTest.pointToClient({ x: 550, y: 150 }),
   )
@@ -93,6 +107,17 @@ test('creates polygons and edits vectors in original-image coordinates', async (
         ).data[3]
       }, polygonVertex),
   ).toBeGreaterThan(0)
+  const polygonBeforeInvalidEdit = await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.polygonId,
+    )?.geometry,
+  )
+  await dragImagePoint(page, { x: 500, y: 100 }, { x: 600, y: 100 })
+  expect(await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.polygonId,
+    )?.geometry,
+  )).toEqual(polygonBeforeInvalidEdit)
   await dragImagePoint(page, { x: 500, y: 100 }, { x: 480, y: 80 })
 
   snapshot = await page.evaluate(() => window.vectorTest.snapshot())
@@ -106,9 +131,55 @@ test('creates polygons and edits vectors in original-image coordinates', async (
     .toBeLessThanOrEqual(pointerTolerance)
   expect(Math.abs((polygon.geometry.points[0]?.[1] ?? 0) - 80))
     .toBeLessThanOrEqual(pointerTolerance)
-  expect(polygon.geometry.points.slice(1)).toEqual([[600, 100], [550, 220]])
+  expect(polygon.geometry.points.slice(1)).toEqual([
+    [600, 100], [600, 220], [500, 220],
+  ])
+
+  const polygonAfterEdit = polygon.geometry
+  await page.keyboard.press('Backspace')
+  expect(await page.evaluate(() => {
+    const annotation = window.vectorTest.snapshot().annotations.find(
+      item => item.id === window.vectorTest.ids.polygonId,
+    )
+    return annotation?.geometry.type === 'polygon'
+      ? annotation.geometry.points.length
+      : 0
+  })).toBe(3)
+  await page.evaluate(() => window.vectorTest.undo())
+  expect(await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.polygonId,
+    )?.geometry,
+  )).toEqual(polygonAfterEdit)
+
+  const emptyPoint = await page.evaluate(() =>
+    window.vectorTest.pointToClient({ x: 1000, y: 700 }),
+  )
+  await page.mouse.click(emptyPoint.x, emptyPoint.y)
+  await page.keyboard.press('Backspace')
+  expect(await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.polygonId,
+    )?.geometry,
+  )).toEqual(polygonAfterEdit)
+
+  const selectedPolygonCenter = await page.evaluate(() =>
+    window.vectorTest.pointToClient({ x: 550, y: 150 }),
+  )
+  await page.mouse.click(selectedPolygonCenter.x, selectedPolygonCenter.y)
+  expect(await page.evaluate(() => window.vectorTest.selection())).toEqual([
+    ids.polygonId,
+  ])
 
   await page.evaluate(() => window.vectorTest.zoom(2.5))
   expect(await page.evaluate(() => window.vectorTest.snapshot().annotations))
     .toEqual(snapshot.annotations)
+
+  await page.keyboard.press('Delete')
+  expect(await page.evaluate(() => window.vectorTest.snapshot().annotations.length))
+    .toBe(2)
+  await page.evaluate(() => window.vectorTest.undo())
+  expect(await page.evaluate(() => window.vectorTest.snapshot().annotations.length))
+    .toBe(3)
+  expect(pageErrors).toEqual([])
 })
