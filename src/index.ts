@@ -151,3 +151,14 @@ export {
   useSelect,
   type RectHandle,
 } from './tools/select-tool.js'
+
+export {
+  CSAnnotatorElement,
+  type ComponentAnnotatorOptions,
+} from './components/annotator-element.js'
+
+export {
+  defineAnnotatorElements,
+  mountAnnotator,
+  unmountAnnotator,
+} from './components/define.js'

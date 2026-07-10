@@ -3,6 +3,8 @@ import type { AnnotationSnapshot, Annotator } from '../../src/index.js'
 declare global {
   interface Window {
     getTestSnapshot: (annotator?: Annotator) => AnnotationSnapshot
+    testAnnotator: Annotator
+    unmountTestAnnotator: () => void
     vectorTest: {
       ids: { rectId: string; polygonId: string }
       pointToClient: (point: { x: number; y: number }) => { x: number; y: number }
