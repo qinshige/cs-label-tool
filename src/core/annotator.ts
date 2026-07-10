@@ -31,11 +31,11 @@ export function destroyAnnotator(annotator: Annotator): void {
   if (state === undefined || state.destroyed) {
     return
   }
-  state.destroyed = true
   state.toolController?.destroy()
   state.imageAbortController?.abort()
   state.renderer?.destroy()
   state.imageSource?.dispose()
+  state.destroyed = true
   state.imageAbortController = null
   state.renderer = null
   state.imageSource = null

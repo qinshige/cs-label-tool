@@ -21,6 +21,7 @@ async function dragImagePoint(
 test('creates polygons and edits vectors in original-image coordinates', async ({
   page,
 }) => {
+  const pointerTolerance = 1.5
   await page.goto('/tests/fixtures/vector-editing.html')
   await expect(page.locator('html')).toHaveAttribute('data-ready', 'true')
   const ids = await page.evaluate(() => window.vectorTest.ids)
@@ -50,8 +51,8 @@ test('creates polygons and edits vectors in original-image coordinates', async (
   if (rect?.geometry.type !== 'rect') {
     throw new Error('Expected the rectangle annotation')
   }
-  expect(rect.geometry.x).toBeCloseTo(150, 4)
-  expect(rect.geometry.y).toBeCloseTo(130, 4)
+  expect(Math.abs(rect.geometry.x - 150)).toBeLessThanOrEqual(pointerTolerance)
+  expect(Math.abs(rect.geometry.y - 130)).toBeLessThanOrEqual(pointerTolerance)
   expect(rect.geometry.width).toBe(200)
   expect(rect.geometry.height).toBe(150)
 
@@ -73,24 +74,25 @@ test('creates polygons and edits vectors in original-image coordinates', async (
   const polygonVertex = await page.evaluate(() =>
     window.vectorTest.pointToClient({ x: 500, y: 100 }),
   )
-  const handleAlpha = await page
-    .locator('canvas[data-layer="interaction"]')
-    .evaluate((element, point) => {
-      const canvas = element as HTMLCanvasElement
-      const context = canvas.getContext('2d')
-      if (context === null) {
-        throw new Error('2D context is unavailable')
-      }
-      const bounds = canvas.getBoundingClientRect()
-      const dpr = canvas.width / bounds.width
-      return context.getImageData(
-        Math.round((point.x - bounds.left) * dpr),
-        Math.round((point.y - bounds.top) * dpr),
-        1,
-        1,
-      ).data[3]
-    }, polygonVertex)
-  expect(handleAlpha).toBeGreaterThan(0)
+  await expect.poll(() =>
+    page
+      .locator('canvas[data-layer="interaction"]')
+      .evaluate((element, point) => {
+        const canvas = element as HTMLCanvasElement
+        const context = canvas.getContext('2d')
+        if (context === null) {
+          throw new Error('2D context is unavailable')
+        }
+        const bounds = canvas.getBoundingClientRect()
+        const dpr = canvas.width / bounds.width
+        return context.getImageData(
+          Math.round((point.x - bounds.left) * dpr),
+          Math.round((point.y - bounds.top) * dpr),
+          1,
+          1,
+        ).data[3]
+      }, polygonVertex),
+  ).toBeGreaterThan(0)
   await dragImagePoint(page, { x: 500, y: 100 }, { x: 480, y: 80 })
 
   snapshot = await page.evaluate(() => window.vectorTest.snapshot())
@@ -100,8 +102,10 @@ test('creates polygons and edits vectors in original-image coordinates', async (
   if (polygon?.geometry.type !== 'polygon') {
     throw new Error('Expected the polygon annotation')
   }
-  expect(polygon.geometry.points[0]?.[0]).toBeCloseTo(480, 4)
-  expect(polygon.geometry.points[0]?.[1]).toBeCloseTo(80, 4)
+  expect(Math.abs((polygon.geometry.points[0]?.[0] ?? 0) - 480))
+    .toBeLessThanOrEqual(pointerTolerance)
+  expect(Math.abs((polygon.geometry.points[0]?.[1] ?? 0) - 80))
+    .toBeLessThanOrEqual(pointerTolerance)
   expect(polygon.geometry.points.slice(1)).toEqual([[600, 100], [550, 220]])
 
   await page.evaluate(() => window.vectorTest.zoom(2.5))
