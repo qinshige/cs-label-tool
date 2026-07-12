@@ -1,171 +1,228 @@
 # cs-label-tool
 
-专为 AI 图像标注软件设计的原生 TypeScript 前端库。无运行时依赖，同时提供函数式 headless 引擎和可选的原生 Web Component UI。
+面向 AI 图像标注场景的原生 TypeScript Canvas 工具库。无运行时依赖，提供函数式 API、绑定实例 API 和可选 Web Component UI。
 
-当前里程碑支持：
+当前支持：
 
-- 普通图片 URL、`Blob`、`ImageBitmap` 加载。
-- 原图坐标系下的缩放、平移、适屏和双向坐标转换。
-- 矩形、多边形创建与编辑。
-- 选择、移动、八方向矩形缩放和多边形顶点编辑。
-- 标签管理、空间索引、撤销重做。
-- 分层 Canvas 2D 渲染和 DPR 高分屏适配。
-- 可插拔工具系统，支持自定义工具注册。
-- 可主题化的 `<cs-annotator>` 默认界面。
+- 图片 URL、`Blob`、`ImageBitmap` 加载。
+- 选择、矩形、多边形、涂抹和橡皮擦工具。
+- 矩形移动与八方向缩放、多边形顶点编辑。
+- Mask 点击选择、拖拽、删除、改标签和近距离合并。
+- 涂抹区域重叠合并；橡皮擦实时透明预览和连通域分割。
+- 缩放、平移、适屏、坐标转换和 DPR 高分屏渲染。
+- 标签管理、区域查询、撤销重做、事件订阅和自定义工具。
 
-## 环境
+## 环境与安装
 
 - Node.js 22.12+
 - Chrome、Edge、Firefox 最近两个大版本
 - Safari 17+
 - 仅提供 ESM
 
-## 安装
-
 ```bash
 npm install cs-label-tool
 ```
 
-## 最简单的使用方式
+容器必须具有可计算的宽高：
 
-### 方式一：实例化模式（推荐）
+```html
+<div id="annotator" style="width: 100%; height: 600px"></div>
+```
+
+## 快速开始
+
+推荐使用绑定实例。实例方法不需要重复传递 `annotator`：
 
 ```ts
 import { mount, createStandardImageSource } from 'cs-label-tool'
 
-const editor = mount('#app', { historyLimit: 100 })
+const editor = mount('#annotator', { historyLimit: 100 })
 
 editor.addLabel({ id: 'person', name: '人物', color: '#ff4d4f' })
 editor.addLabel({ id: 'vehicle', name: '车辆', color: '#1677ff' })
+editor.setActiveLabel('person')
 
-await editor.setImage(createStandardImageSource('/images/example.jpg'))
-editor.useRect()
+await editor.setImage(createStandardImageSource('/images/example.webp'))
+editor.fitToScreen()
+editor.tools.rect()
 ```
 
-### 方式二：函数式 API
+完整页面示例：
 
 ```ts
 import {
-  addLabel,
+  mount,
   createStandardImageSource,
-  mountAnnotator,
-  setImageSource,
+  type AnnotationSnapshot,
 } from 'cs-label-tool'
 
-const annotator = mountAnnotator('#app', { historyLimit: 100 })
+const editor = mount('#annotator', { historyLimit: 100 })
 
-addLabel(annotator, {
-  id: 'person',
-  name: '人物',
-  color: '#ff4d4f',
-})
-
-await setImageSource(
-  annotator,
-  createStandardImageSource('/images/example.jpg'),
-)
-```
-
-### 方式三：默认导出 API
-
-```ts
-import csLabelTool from 'cs-label-tool'
-
-const annotator = csLabelTool.mount('#app', { historyLimit: 100 })
-csLabelTool.addLabel(annotator, { id: 'person', name: '人物', color: '#ff4d4f' })
-await csLabelTool.setImage(annotator, csLabelTool.createImageSource('/images/example.jpg'))
-```
-
-默认 UI 提供选择、矩形、多边形、放大、缩小、适屏、撤销、重做和标签切换控件。图片加载前，依赖画布的控件会保持禁用。
-
----
-
-## API 参考
-
-### 一、实例化 API（推荐）
-
-```ts
-import { create, mount } from 'cs-label-tool'
-
-// Headless 模式
-const editor = create({
-  container: document.querySelector('#viewport'),
-  historyLimit: 100,
-})
-
-// 带 UI 模式
-const editor = mount('#app', { historyLimit: 100 })
-
-// 实例方法
 editor.addLabel({ id: 'person', name: '人物', color: '#ff4d4f' })
-editor.setImage(imageSource)
-editor.useRect()
-editor.usePolygon()
-editor.useSelect()
+editor.addLabel({ id: 'vehicle', name: '车辆', color: '#1677ff' })
+editor.setActiveLabel('person')
+
+await editor.setImage(createStandardImageSource('/a.webp'))
 editor.fitToScreen()
-editor.zoomTo(2)
-editor.panBy({ x: 100, y: 50 })
-editor.undo()
-editor.redo()
-editor.snapshot()
+
+document.querySelector('#rect')?.addEventListener('click', () => {
+  editor.tools.rect({ minimumSize: 3 })
+})
+
+document.querySelector('#brush')?.addEventListener('click', () => {
+  editor.tools.brush({ size: 24 })
+})
+
+document.querySelector('#eraser')?.addEventListener('click', () => {
+  editor.tools.eraser({ size: 18 })
+})
+
+document.querySelector('#delete')?.addEventListener('click', () => {
+  editor.tools.deleteSelection()
+})
+
+const unsubscribe = editor.subscribe('change', () => {
+  const snapshot: AnnotationSnapshot = editor.snapshot()
+  console.log(snapshot.annotations)
+})
+
+// 页面卸载时调用
+unsubscribe()
 editor.destroy()
 ```
 
-### 二、函数式 API
+## 统一工具 API
+
+### 实例调用
+
+`editor.tools` 封装了所有内置交互工具和常用选择操作：
 
 ```ts
-import { createAnnotator, destroyAnnotator, getSnapshot } from 'cs-label-tool'
+editor.tools.select()
+editor.tools.rect()
+editor.tools.polygon()
+editor.tools.brush({ size: 24 })
+editor.tools.eraser({ size: 18 })
 
-// 创建 annotator（headless 模式）
-const annotator = createAnnotator({
-  container: document.querySelector('#viewport'),
-  historyLimit: 100,
-})
+const activeToolId = editor.tools.activeId()
+const tools = editor.tools.list()
+const brush = editor.tools.get('brush')
 
-// 获取当前状态快照
-const snapshot = getSnapshot(annotator)
-// { schemaVersion, annotations, labels, revision }
-
-// 销毁 annotator（清理 DOM 监听、画布、资源）
-destroyAnnotator(annotator)
+editor.tools.cancel()
 ```
 
-### 二、标注命令
+### 函数式调用
+
+已有原始 `Annotator` 时，可以创建一次绑定工具对象：
 
 ```ts
 import {
-  addRect,
-  addPolygon,
-  updateAnnotation,
-  removeAnnotation,
-  queryAnnotations,
-  undo,
-  redo,
-  canUndo,
-  canRedo,
+  createAnnotator,
+  createToolApi,
+  createStandardImageSource,
+  setImageSource,
+  addLabel,
+  setActiveLabel,
 } from 'cs-label-tool'
 
-// 添加矩形标注
-const rectId = addRect(annotator, {
-  labelId: 'person',
-  x: 100,
-  y: 80,
-  width: 300,
-  height: 500,
+const annotator = createAnnotator({
+  container: document.querySelector('#annotator')!,
+  historyLimit: 100,
 })
 
-// 添加多边形标注
-const polygonId = addPolygon(annotator, {
-  labelId: 'person',
-  points: [
-    [20, 20],
-    [120, 20],
-    [80, 140],
-  ],
-})
+addLabel(annotator, { id: 'person', name: '人物', color: '#ff4d4f' })
+setActiveLabel(annotator, 'person')
+await setImageSource(annotator, createStandardImageSource('/a.webp'))
 
-// 更新标注几何
-updateAnnotation(annotator, rectId, {
+const tools = createToolApi(annotator)
+tools.brush({ size: 20 })
+```
+
+也可以直接调用原有函数：
+
+```ts
+import {
+  useSelect,
+  useRect,
+  usePolygon,
+  useBrush,
+  useEraser,
+} from 'cs-label-tool'
+
+useSelect(annotator)
+useRect(annotator, { labelId: 'person', minimumSize: 3 })
+usePolygon(annotator, { labelId: 'person' })
+useBrush(annotator, { labelId: 'person', size: 24, color: '#ff4d4f' })
+useEraser(annotator, { size: 18 })
+```
+
+### 工具参数
+
+| 工具 | 方法 | 参数 |
+| --- | --- | --- |
+| 选择 | `select()` | 无 |
+| 矩形 | `rect(options)` | `labelId?`, `minimumSize?` |
+| 多边形 | `polygon(options)` | `labelId?` |
+| 涂抹 | `brush(options)` | `labelId?`, `size?`, `color?` |
+| 橡皮擦 | `eraser(options)` | `size?` |
+
+未传 `labelId` 时，矩形、多边形和涂抹使用当前激活标签。调用绘制工具前必须加载图片并激活一个标签。
+
+### 工具行为
+
+- 矩形：按下拖动，抬起完成；选择后可移动和拖动边框缩放。
+- 多边形：逐点点击，按 `Enter` 或双击完成，`Backspace` 删除最后一个点。
+- 涂抹：按下拖动，抬起完成；同标签且重叠的 mask 自动合并。
+- 橡皮擦：按下拖动时实时透明擦除，抬起提交；只影响 mask。
+- Mask 分割：橡皮擦切断区域后，每个连通块成为独立标注。
+- Mask 合并：选择后拖动，同标签区域进入约 8 屏幕像素范围时自动合并。
+
+## 选择、编辑与删除
+
+```ts
+// 通过 ID 选择
+editor.tools.selectAnnotation(annotationId)
+
+// 当前选择
+const selectedIds = editor.tools.selection()
+
+// 修改所有选中标注的标签，返回修改数量
+const changed = editor.tools.setSelectionLabel('vehicle')
+
+// 删除所有选中标注，返回删除数量
+const removed = editor.tools.deleteSelection()
+
+// 清除选择
+editor.tools.clearSelection()
+```
+
+对应函数式 API：
+
+```ts
+import {
+  selectAnnotation,
+  getSelection,
+  clearSelection,
+  updateSelectedAnnotationsLabel,
+  deleteSelectedAnnotations,
+  getActiveToolId,
+} from 'cs-label-tool'
+
+selectAnnotation(annotator, annotationId)
+updateSelectedAnnotationsLabel(annotator, 'vehicle')
+deleteSelectedAnnotations(annotator)
+clearSelection(annotator)
+
+console.log(getSelection(annotator))
+console.log(getActiveToolId(annotator))
+```
+
+直接更新单条标注：
+
+```ts
+editor.updateAnnotationLabel(annotationId, 'vehicle')
+
+editor.updateAnnotation(rectId, {
   type: 'rect',
   x: 120,
   y: 90,
@@ -173,315 +230,270 @@ updateAnnotation(annotator, rectId, {
   height: 500,
 })
 
-// 删除标注
-removeAnnotation(annotator, polygonId)
+editor.removeAnnotation(annotationId)
+```
 
-// 查询指定区域内的标注
-const annotations = queryAnnotations(annotator, {
+## 标注命令
+
+### 矩形
+
+```ts
+const rectId = editor.addRect({
+  labelId: 'person',
+  x: 100,
+  y: 80,
+  width: 300,
+  height: 500,
+})
+```
+
+### 多边形
+
+程序化添加多边形时，`points` 使用 `{ x, y }`：
+
+```ts
+const polygonId = editor.addPolygon({
+  labelId: 'person',
+  points: [
+    { x: 20, y: 20 },
+    { x: 120, y: 20 },
+    { x: 80, y: 140 },
+  ],
+})
+```
+
+快照中的 `PolygonGeometry.points` 使用 `[x, y]` 元组，这是输入格式与持久化格式的区别。
+
+### Mask
+
+Mask 使用从 0 开始、0/1 交替的行程编码：
+
+```ts
+import { encodeBinaryMaskRle } from 'cs-label-tool'
+
+const width = 640
+const height = 480
+const pixels = new Uint8Array(width * height)
+pixels[100 * width + 120] = 1
+
+const maskId = editor.addMask({
+  labelId: 'person',
+  width,
+  height,
+  rle: encodeBinaryMaskRle(pixels),
+})
+```
+
+可用的 mask 工具函数：
+
+```ts
+import {
+  encodeBinaryMaskRle,
+  decodeBinaryMaskRle,
+  getBinaryMaskBounds,
+  translateBinaryMask,
+  splitBinaryMaskComponents,
+  binaryMasksWithinDistance,
+} from 'cs-label-tool'
+```
+
+### 查询与历史
+
+```ts
+const annotations = editor.queryAnnotations({
   x: 0,
   y: 0,
   width: 500,
   height: 500,
 })
 
-// 撤销/重做
-if (canUndo(annotator)) {
-  undo(annotator)
-}
-if (canRedo(annotator)) {
-  redo(annotator)
+if (editor.canUndo()) editor.undo()
+if (editor.canRedo()) editor.redo()
+```
+
+函数式版本为 `addRect`、`addPolygon`、`addMask`、`updateAnnotation`、`updateAnnotationLabel`、`removeAnnotation`、`queryAnnotations`、`undo`、`redo`、`canUndo` 和 `canRedo`，第一个参数均为 `annotator`。
+
+## 标签管理
+
+```ts
+editor.addLabel({ id: 'person', name: '人物', color: '#ff4d4f' })
+editor.setActiveLabel('person')
+
+const activeLabelId = editor.getActiveLabel()
+
+editor.updateLabel('person', {
+  name: '行人',
+  color: '#ff7875',
+})
+```
+
+函数式版本：`addLabel`、`setActiveLabel`、`getActiveLabel`、`updateLabel`。
+
+## 图片与视图
+
+```ts
+import { createStandardImageSource } from 'cs-label-tool'
+
+await editor.setImage(createStandardImageSource('/images/example.webp'))
+
+editor.fitToScreen()
+editor.zoomTo(2)
+editor.zoomTo(2, { x: 100, y: 100 })
+editor.zoomBy(1.25)
+editor.panBy({ x: 100, y: 50 })
+
+console.log(editor.getZoom())
+console.log(editor.hasImage())
+
+// 容器尺寸发生变化后调用
+editor.resizeViewport()
+```
+
+函数式 API 还提供坐标转换：
+
+```ts
+import { imageToClient, clientToImage } from 'cs-label-tool'
+
+const clientPoint = imageToClient(annotator, { x: 100, y: 100 })
+const imagePoint = clientToImage(annotator, clientPoint)
+```
+
+## 事件与快照
+
+```ts
+const unsubscribe = editor.subscribe('change', event => {
+  switch (event.kind) {
+    case 'annotation:add':
+    case 'annotation:update':
+    case 'annotation:remove':
+      console.log(editor.snapshot().annotations)
+      break
+    case 'selection:update':
+      console.log(editor.tools.selection())
+      break
+  }
+})
+
+const snapshot = editor.snapshot()
+const json = JSON.stringify(snapshot)
+
+unsubscribe()
+```
+
+快照结构：
+
+```ts
+interface AnnotationSnapshot {
+  readonly schemaVersion: 1
+  readonly revision: number
+  readonly annotations: readonly Annotation[]
+  readonly labels: readonly LabelDefinition[]
 }
 ```
 
-### 三、标签管理
+## 自定义工具
 
 ```ts
-import { addLabel, getActiveLabel, setActiveLabel, updateLabel } from 'cs-label-tool'
+import { addRect, type Tool } from 'cs-label-tool'
 
-// 添加标签
-addLabel(annotator, {
+const pointMarker: Tool = {
+  id: 'point-marker',
+  name: '点标记',
+  description: '创建一个 8 x 8 的点标记',
+  cursor: 'crosshair',
+  category: 'drawing',
+  shortcuts: [{ key: 'm' }],
+  handle(input, context) {
+    if (input.type !== 'down') return
+    addRect(context.annotator, {
+      labelId: 'person',
+      x: input.imagePoint.x - 4,
+      y: input.imagePoint.y - 4,
+      width: 8,
+      height: 8,
+    })
+  },
+  cancel() {},
+}
+
+editor.registerTool(pointMarker)
+editor.activateToolById('point-marker')
+
+console.log(editor.getTool('point-marker'))
+console.log(editor.listTools())
+console.log(editor.listToolsByCategory('drawing'))
+
+editor.unregisterTool('point-marker')
+```
+
+也可以通过统一工具 API 激活工具对象：
+
+```ts
+editor.tools.register(pointMarker)
+editor.tools.activateById('point-marker')
+editor.tools.listByCategory('drawing')
+editor.tools.unregister('point-marker')
+
+// 不注册也可以直接激活一个 Tool 对象
+editor.tools.activate(pointMarker)
+```
+
+## 三种入口的区别
+
+| 入口 | 返回值 | 适用场景 |
+| --- | --- | --- |
+| `mount('#app')` | `AnnotatorInstance` | 推荐，带 Web Component UI 和绑定方法 |
+| `create({ container })` | `AnnotatorInstance` | 自建 UI，使用绑定方法 |
+| `mountAnnotator/createAnnotator` | 原始 `Annotator` | 函数式 API、框架适配 |
+| 默认导出 `csLabelTool` | 函数集合 | 需要单一命名空间时 |
+
+默认导出示例：
+
+```ts
+import csLabelTool from 'cs-label-tool'
+
+const annotator = csLabelTool.mount('#app', { historyLimit: 100 })
+csLabelTool.addLabel(annotator, {
   id: 'person',
   name: '人物',
   color: '#ff4d4f',
 })
 
-// 获取当前激活的标签
-const activeLabelId = getActiveLabel(annotator)
+await csLabelTool.setImage(
+  annotator,
+  csLabelTool.createImageSource('/a.webp'),
+)
 
-// 设置激活的标签（绘制时使用）
-setActiveLabel(annotator, 'person')
-
-// 更新标签（支持动态修改名称和颜色）
-updateLabel(annotator, 'person', {
-  name: '人类',
-  color: '#ff7875',
-})
+const tools = csLabelTool.createToolApi(annotator)
+tools.brush({ size: 24 })
 ```
 
-### 四、图像与视图
-
-```ts
-import {
-  createStandardImageSource,
-  setImageSource,
-  fitToScreen,
-  zoomTo,
-  zoomBy,
-  panBy,
-  getZoom,
-  hasImage,
-  resizeViewport,
-  clientToImage,
-  imageToClient,
-} from 'cs-label-tool'
-
-// 创建图像源（支持 URL / Blob / ImageBitmap）
-const imageSource = createStandardImageSource('/images/example.jpg')
-
-// 设置图像源
-await setImageSource(annotator, imageSource)
-
-// 检查是否已加载图像
-if (hasImage(annotator)) {
-  // ...
-}
-
-// 视图操作
-fitToScreen(annotator)           // 适应屏幕
-zoomTo(annotator, 2)             // 缩放到指定倍数
-zoomTo(annotator, 2, { x: 100, y: 100 }) // 以指定点为锚点缩放
-zoomBy(annotator, 1.25)          // 相对缩放
-panBy(annotator, { x: 100, y: 50 }) // 平移
-
-// 获取当前缩放比例
-const zoom = getZoom(annotator)
-
-// 窗口大小变化时调用
-resizeViewport(annotator)
-
-// 坐标转换
-const screenPoint = imageToClient(annotator, { x: 100, y: 100 })
-const imagePoint = clientToImage(annotator, { x: 100, y: 100 })
-```
-
-### 五、工具系统
-
-```ts
-import {
-  useSelect,
-  useRect,
-  usePolygon,
-  activateTool,
-  activateToolById,
-  registerTool,
-  unregisterTool,
-  getTool,
-  listTools,
-  listToolsByCategory,
-  cancelActiveGesture,
-  createToolRegistry,
-  type Tool,
-  type ToolCategory,
-  type KeyboardShortcut,
-} from 'cs-label-tool'
-
-// 使用内置工具
-useSelect(annotator)           // 选择工具
-useRect(annotator)             // 矩形工具（使用当前激活标签）
-useRect(annotator, { labelId: 'person' }) // 指定标签
-usePolygon(annotator)          // 多边形工具
-
-// 通过 ID 激活工具
-activateToolById(annotator, 'select')
-
-// 注册自定义工具
-const customTool: Tool = {
-  id: 'point-marker',
-  name: '点标记',
-  description: '在图像上标记单个点',
-  icon: '📍',
-  cursor: 'crosshair',
-  category: 'drawing',
-  shortcuts: [{ key: 'm' }],
-  handle(input, context) {
-    if (input.type === 'down') {
-      addRect(context.annotator, {
-        labelId: 'other',
-        x: input.imagePoint.x - 4,
-        y: input.imagePoint.y - 4,
-        width: 8,
-        height: 8,
-      })
-    }
-  },
-  cancel() {},
-}
-
-registerTool(annotator, customTool)
-
-// 工具管理
-const tool = getTool(annotator, 'point-marker')
-const allTools = listTools(annotator)
-const drawingTools = listToolsByCategory(annotator, 'drawing')
-unregisterTool(annotator, 'point-marker')
-
-// 取消当前手势
-cancelActiveGesture(annotator)
-```
-
-### 六、选择与编辑
-
-```ts
-import {
-  selectAnnotation,
-  clearSelection,
-  getSelection,
-  moveRect,
-  resizeRect,
-  movePolygonVertex,
-  removePolygonVertex,
-} from 'cs-label-tool'
-
-// 选择标注
-selectAnnotation(annotator, annotationId)
-
-// 清除选择
-clearSelection(annotator)
-
-// 获取选中的标注 ID 列表
-const selectedIds = getSelection(annotator)
-
-// 几何变换工具函数
-const movedRect = moveRect(geometry, { x: 10, y: 20 })
-const resizedRect = resizeRect(geometry, 'south-east', { x: 200, y: 300 })
-const updatedPolygon = movePolygonVertex(geometry, 0, { x: 50, y: 50 })
-const removedVertex = removePolygonVertex(geometry, 0)
-```
-
-### 七、事件监听
-
-```ts
-import { subscribe, type ChangeKind } from 'cs-label-tool'
-
-const unsubscribe = subscribe(annotator, 'change', event => {
-  console.log(event.kind, event.revision)
-  
-  switch (event.kind) {
-    case 'annotation:add':
-    case 'annotation:remove':
-    case 'annotation:update':
-      // 标注变化
-      break
-    case 'label:add':
-    case 'label:update':
-    case 'label:activate':
-      // 标签变化
-      break
-    case 'history:undo':
-    case 'history:redo':
-      // 历史操作
-      break
-    case 'image:load':
-    case 'image:clear':
-      // 图像变化
-      break
-  }
-})
-
-// 取消订阅
-unsubscribe()
-```
-
-### 八、Web Component
+## Web Component
 
 ```ts
 import {
   defineAnnotatorElements,
-  mountAnnotator,
-  unmountAnnotator,
   type CSAnnotatorElement,
 } from 'cs-label-tool'
 
-// 方式一：自动挂载
-const annotator = mountAnnotator('#app', {
-  historyLimit: 100,
-})
-
-// 方式二：手动创建
 defineAnnotatorElements()
-const element = document.createElement('cs-annotator')
-document.body.appendChild(element)
-const annotator = element.configure({ historyLimit: 100 })
 
-// 卸载
+const element = document.createElement('cs-annotator') as CSAnnotatorElement
+document.body.append(element)
+const annotator = element.configure({ historyLimit: 100 })
+```
+
+卸载自动挂载的组件：
+
+```ts
+import { unmountAnnotator } from 'cs-label-tool'
+
 unmountAnnotator('#app')
 ```
 
-### 九、几何工具函数
+## 核心类型
 
 ```ts
-import {
-  normalizeRect,
-  pointInRect,
-  pointInPolygon,
-  validatePolygon,
-} from 'cs-label-tool'
-
-// 矩形
-const rect = normalizeRect({ x: 100, y: 80 }, { x: 50, y: 120 })
-const inside = pointInRect({ x: 70, y: 90 }, rect)
-
-// 多边形
-const valid = validatePolygon([
-  { x: 0, y: 0 },
-  { x: 100, y: 0 },
-  { x: 50, y: 100 },
-])
-const insidePolygon = pointInPolygon({ x: 50, y: 50 }, [
-  [0, 0],
-  [100, 0],
-  [50, 100],
-])
-```
-
-### 十、空间索引（高级）
-
-```ts
-import {
-  createGridIndex,
-  insertSpatialItem,
-  updateSpatialItem,
-  removeSpatialItem,
-  querySpatialBounds,
-} from 'cs-label-tool'
-
-const index = createGridIndex(512)
-
-insertSpatialItem(index, 'anno-1', { x: 0, y: 0, width: 100, height: 100 })
-updateSpatialItem(index, 'anno-1', { x: 50, y: 50, width: 100, height: 100 })
-removeSpatialItem(index, 'anno-1')
-
-const visibleIds = querySpatialBounds(index, {
-  x: 0,
-  y: 0,
-  width: 500,
-  height: 500,
-})
-```
-
----
-
-## 类型定义
-
-### 核心类型
-
-```ts
-interface LabelDefinition {
-  readonly id: string
-  readonly name: string
-  readonly color: string
-}
-
 interface RectGeometry {
   readonly type: 'rect'
   readonly x: number
@@ -492,67 +504,26 @@ interface RectGeometry {
 
 interface PolygonGeometry {
   readonly type: 'polygon'
-  readonly points: readonly [number, number][]
+  readonly points: readonly (readonly [number, number])[]
 }
 
-interface Annotation {
-  readonly id: string
-  readonly labelId: string
-  readonly geometry: RectGeometry | PolygonGeometry
-  readonly source: 'manual' | 'ai'
-  readonly status: 'suggested' | 'accepted' | 'rejected' | 'modified'
-  readonly revision: number
-  readonly createdAt: number
-  readonly updatedAt: number
-  readonly metadata: Readonly<Record<string, unknown>>
+interface MaskGeometry {
+  readonly type: 'mask'
+  readonly width: number
+  readonly height: number
+  readonly rle: readonly number[]
 }
 
+type Annotation = RectAnnotation | PolygonAnnotation | MaskAnnotation
 type ToolCategory = 'selection' | 'drawing' | 'navigation' | 'utility'
-
-interface KeyboardShortcut {
-  readonly key: string
-  readonly ctrl?: boolean
-  readonly shift?: boolean
-  readonly meta?: boolean
-  readonly alt?: boolean
-}
 ```
 
----
-
-## 快捷键
-
-| 快捷键 | 功能 |
-|--------|------|
-| `S` | 选择工具 |
-| `R` | 矩形工具 |
-| `P` | 多边形工具 |
-| `+` | 放大 |
-| `-` | 缩小 |
-| `F` | 适应屏幕 |
-| `Ctrl+Z` | 撤销 |
-| `Ctrl+Y` | 重做 |
-| `Delete` | 删除选中标注 |
-| `Backspace` | 删除多边形顶点（选中时） |
-
----
-
-## 开发
+## 开发命令
 
 ```bash
-npm install
 npm run dev
-npm test
 npm run typecheck
-npm run build
+npm test
 npm run test:e2e
+npm run build
 ```
-
-浏览器演示位于 `demo/`。
-
-## 后续里程碑
-
-- 超大图瓦片和金字塔图片源。
-- 画笔、橡皮擦、Mask 瓦片和 COCO RLE。
-- 可插拔 AI Provider、候选审核、置信度过滤和批量确认。
-- COCO/YOLO 导入导出、版本化快照和自动保存回调。

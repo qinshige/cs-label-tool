@@ -127,6 +127,11 @@ export {
   listToolsByCategory,
   createDefaultToolRegistry,
   createToolRegistry,
+  createToolApi,
+  deleteSelectedAnnotations,
+  getActiveToolId,
+  updateSelectedAnnotationsLabel,
+  type AnnotationToolApi,
 } from './tools/index.js'
 
 export {

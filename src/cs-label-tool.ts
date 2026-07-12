@@ -88,6 +88,8 @@ export type {
   NormalizedPointerInput,
 } from './tools/types.js'
 
+export type { AnnotationToolApi } from './tools/api.js'
+
 export type {
   RectToolInput,
   RectToolOptions,
@@ -169,6 +171,10 @@ const API = {
   listTools: Tools.listTools,
   listToolsByCategory: Tools.listToolsByCategory,
   cancelGesture: Tools.cancelActiveGesture,
+  createToolApi: Tools.createToolApi,
+  getActiveToolId: Tools.getActiveToolId,
+  deleteSelectedAnnotations: Tools.deleteSelectedAnnotations,
+  updateSelectedAnnotationsLabel: Tools.updateSelectedAnnotationsLabel,
 
   selectAnnotation: SelectTool.selectAnnotation,
   clearSelection: SelectTool.clearSelection,
@@ -212,6 +218,7 @@ const API = {
 
 export interface AnnotatorInstance {
   annotator: Annotator
+  readonly tools: Tools.AnnotationToolApi
 
   addRect(input: Omit<Commands.AddRectInput, 'type'>): string
   addPolygon(input: Commands.AddPolygonInput): string
@@ -270,6 +277,7 @@ export interface AnnotatorInstance {
 function createInstance(annotator: Annotator): AnnotatorInstance {
   return {
     annotator,
+    tools: Tools.createToolApi(annotator),
 
     addRect(input) {
       return Commands.addRect(annotator, input)

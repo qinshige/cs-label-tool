@@ -5,6 +5,14 @@ import type { Tool, ToolCategory } from './types.js'
 export { createDefaultToolRegistry, createToolRegistry } from './registry.js'
 
 export {
+  createToolApi,
+  deleteSelectedAnnotations,
+  getActiveToolId,
+  updateSelectedAnnotationsLabel,
+  type AnnotationToolApi,
+} from './api.js'
+
+export {
   activateTool,
   activateToolById,
   cancelActiveGesture,
