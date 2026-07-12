@@ -16,6 +16,7 @@ import type {
   Annotation,
   AnnotationBase,
   Annotator,
+  MaskGeometry,
   PolygonGeometry,
   RectGeometry,
 } from './types.js'
@@ -93,27 +94,42 @@ function validateRect(geometry: RectGeometry): void {
   }
 }
 
-function validateGeometry(geometry: RectGeometry | PolygonGeometry): void {
+function validateGeometry(geometry: RectGeometry | PolygonGeometry | MaskGeometry): void {
   if (geometry.type === 'rect') {
     validateRect(geometry)
     return
   }
-  const result = validatePolygon(
-    geometry.points.map(([x, y]) => ({ x, y })),
-  )
-  if (!result.valid) {
-    throw new AnnotatorError(
-      'INVALID_GEOMETRY',
-      `Invalid polygon: ${result.reason}`,
+  if (geometry.type === 'polygon') {
+    const result = validatePolygon(
+      geometry.points.map(([x, y]) => ({ x, y })),
     )
+    if (!result.valid) {
+      throw new AnnotatorError(
+        'INVALID_GEOMETRY',
+        `Invalid polygon: ${result.reason}`,
+      )
+    }
+    return
+  }
+  if (geometry.type === 'mask') {
+    if (geometry.width <= 0 || geometry.height <= 0) {
+      throw new AnnotatorError(
+        'INVALID_GEOMETRY',
+        'Mask dimensions must be positive.',
+      )
+    }
+    return
   }
 }
 
 function getGeometryBounds(
-  geometry: RectGeometry | PolygonGeometry,
+  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
 ): Bounds {
   if (geometry.type === 'rect') {
     return geometry
+  }
+  if (geometry.type === 'mask') {
+    return { x: 0, y: 0, width: geometry.width, height: geometry.height }
   }
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
@@ -210,10 +226,42 @@ export function addPolygon(
   return annotation.id
 }
 
+export interface AddMaskInput {
+  readonly labelId: string
+  readonly width: number
+  readonly height: number
+  readonly rle: readonly number[]
+}
+
+export function addMask(annotator: Annotator, input: AddMaskInput): string {
+  const state = getInternalState(annotator)
+  requireLabel(state, input.labelId)
+  const geometry: MaskGeometry = {
+    type: 'mask',
+    width: input.width,
+    height: input.height,
+    rle: input.rle,
+  }
+  validateGeometry(geometry)
+  const annotation = cloneAnnotation({
+    ...createAnnotationBase(input.labelId),
+    geometry,
+  })
+  const index = state.annotations.length
+
+  commitDomainCommand(
+    annotator,
+    'annotation:add',
+    current => insertAnnotation(current, annotation, index),
+    current => deleteAnnotation(current, annotation.id),
+  )
+  return annotation.id
+}
+
 export function updateAnnotation(
   annotator: Annotator,
   id: string,
-  geometry: RectGeometry | PolygonGeometry,
+  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
 ): void {
   validateGeometry(geometry)
   const state = getInternalState(annotator)
@@ -246,6 +294,43 @@ export function updateAnnotation(
       id,
       getGeometryBounds(annotation.geometry),
     )
+  }
+  commitDomainCommand(
+    annotator,
+    'annotation:update',
+    current => apply(current, next),
+    current => apply(current, previous),
+  )
+}
+
+export function updateAnnotationLabel(
+  annotator: Annotator,
+  id: string,
+  labelId: string,
+): void {
+  const state = getInternalState(annotator)
+  requireLabel(state, labelId)
+  const previous = state.annotationsById.get(id)
+  if (previous === undefined) {
+    throw new AnnotatorError(
+      'ANNOTATION_NOT_FOUND',
+      `Annotation not found: ${id}`,
+    )
+  }
+  if (previous.labelId === labelId) {
+    return
+  }
+  const next = cloneAnnotation({
+    ...previous,
+    labelId,
+    revision: previous.revision + 1,
+    updatedAt: Date.now(),
+  } as Annotation)
+  const index = state.annotations.findIndex(annotation => annotation.id === id)
+
+  const apply = (current: InternalState, annotation: Annotation) => {
+    current.annotations[index] = annotation
+    current.annotationsById.set(id, annotation)
   }
   commitDomainCommand(
     annotator,

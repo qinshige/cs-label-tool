@@ -1,5 +1,6 @@
 import type {
   Annotation,
+  MaskGeometry,
   PolygonGeometry,
   RectGeometry,
 } from './types.js'
@@ -16,16 +17,24 @@ function deepFreeze(value: unknown, seen = new WeakSet<object>()): unknown {
 }
 
 export function cloneGeometry(
-  geometry: RectGeometry | PolygonGeometry,
-): RectGeometry | PolygonGeometry {
+  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
+): RectGeometry | PolygonGeometry | MaskGeometry {
   if (geometry.type === 'rect') {
     return Object.freeze({ ...geometry })
   }
+  if (geometry.type === 'polygon') {
+    return Object.freeze({
+      type: 'polygon' as const,
+      points: Object.freeze(
+        geometry.points.map(([x, y]) => Object.freeze([x, y] as const)),
+      ),
+    })
+  }
   return Object.freeze({
-    type: 'polygon' as const,
-    points: Object.freeze(
-      geometry.points.map(([x, y]) => Object.freeze([x, y] as const)),
-    ),
+    type: 'mask' as const,
+    width: geometry.width,
+    height: geometry.height,
+    rle: Object.freeze([...geometry.rle]),
   })
 }
 

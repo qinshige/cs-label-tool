@@ -13,6 +13,8 @@ import { subscribe } from '../core/events.js'
 import type { Annotator, AnnotatorOptions } from '../core/types.js'
 import { fitToScreen, hasImage, zoomBy } from '../image/image-commands.js'
 import { getActiveLabel, setActiveLabel } from '../labels/labels.js'
+import { useBrush } from '../tools/brush-tool.js'
+import { useEraser } from '../tools/eraser-tool.js'
 import { usePolygon } from '../tools/polygon-tool.js'
 import { useRect } from '../tools/rect-tool.js'
 import { useSelect } from '../tools/select-tool.js'
@@ -45,6 +47,8 @@ export class CSAnnotatorElement extends HTMLElementBase {
           <button type="button" data-action="select" aria-label="Select" aria-pressed="false">Select</button>
           <button type="button" data-action="rect" aria-label="Rectangle" aria-pressed="false">Rectangle</button>
           <button type="button" data-action="polygon" aria-label="Polygon" aria-pressed="false">Polygon</button>
+          <button type="button" data-action="brush" aria-label="Brush" aria-pressed="false">Brush</button>
+          <button type="button" data-action="eraser" aria-label="Eraser" aria-pressed="false">Eraser</button>
           <button type="button" data-action="zoom-in" aria-label="Zoom in">Zoom in</button>
           <button type="button" data-action="zoom-out" aria-label="Zoom out">Zoom out</button>
           <button type="button" data-action="fit" aria-label="Fit">Fit</button>
@@ -125,6 +129,12 @@ export class CSAnnotatorElement extends HTMLElementBase {
       } else if (action === 'polygon') {
         usePolygon(annotator)
         this.#setActiveTool('polygon')
+      } else if (action === 'brush') {
+        useBrush(annotator)
+        this.#setActiveTool('brush')
+      } else if (action === 'eraser') {
+        useEraser(annotator)
+        this.#setActiveTool('eraser')
       } else if (action === 'fit') {
         fitToScreen(annotator)
       } else if (action === 'zoom-in') {
@@ -149,7 +159,7 @@ export class CSAnnotatorElement extends HTMLElementBase {
   #setActiveTool(tool: string): void {
     this.#activeTool = tool
     for (const [action, button] of this.#buttons) {
-      if (['select', 'rect', 'polygon'].includes(action)) {
+      if (['select', 'rect', 'polygon', 'brush', 'eraser'].includes(action)) {
         button.setAttribute('aria-pressed', String(action === tool))
       }
     }

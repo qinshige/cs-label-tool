@@ -81,8 +81,22 @@ export function reduceRectTool(
 }
 
 export interface RectToolOptions {
-  readonly labelId: string
+  readonly labelId?: string
   readonly minimumSize?: number
+}
+
+function resolveLabelId(
+  annotator: Annotator,
+  configuredLabelId: string | undefined,
+): string {
+  const labelId = configuredLabelId ?? getActiveLabel(annotator)
+  if (labelId === null) {
+    throw new AnnotatorError(
+      'UNKNOWN_LABEL',
+      'A label must be active before drawing a rectangle.',
+    )
+  }
+  return labelId
 }
 
 export function createRectTool(options: RectToolOptions): Tool {
@@ -99,17 +113,19 @@ export function createRectTool(options: RectToolOptions): Tool {
     )
     state = result.state
     if (result.draft !== undefined) {
+      const labelId = resolveLabelId(context.annotator, options.labelId)
       context.setDraft({
         type: 'rect',
         geometry: result.draft,
-        labelId: options.labelId,
+        labelId,
       })
     } else {
       context.clearDraft()
     }
     if (result.commit !== undefined) {
+      const labelId = resolveLabelId(context.annotator, options.labelId)
       addRect(context.annotator, {
-        labelId: options.labelId,
+        labelId,
         ...result.commit,
       })
     }
@@ -117,7 +133,12 @@ export function createRectTool(options: RectToolOptions): Tool {
 
   return {
     id: 'rect',
+    name: '矩形',
+    description: '绘制矩形标注',
+    icon: '⬜',
     cursor: 'crosshair',
+    category: 'drawing',
+    shortcuts: [{ key: 'r' }],
     handle: applyResult,
     cancel(context) {
       state = reduceRectTool(state, { type: 'cancel' }).state
@@ -130,13 +151,7 @@ export function useRect(
   annotator: Annotator,
   options: Partial<RectToolOptions> = {},
 ): void {
-  const labelId = options.labelId ?? getActiveLabel(annotator)
-  if (labelId === null) {
-    throw new AnnotatorError(
-      'UNKNOWN_LABEL',
-      'A label must be active before drawing a rectangle.',
-    )
-  }
+  const labelId = resolveLabelId(annotator, options.labelId)
   activateTool(annotator, createRectTool({
     labelId,
     ...(options.minimumSize === undefined

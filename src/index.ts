@@ -7,6 +7,7 @@ export {
 export {
   addPolygon,
   addRect,
+  addMask,
   canRedo,
   canUndo,
   redo,
@@ -14,8 +15,10 @@ export {
   removeAnnotation,
   undo,
   updateAnnotation,
+  updateAnnotationLabel,
   type AddPolygonInput,
   type AddRectInput,
+  type AddMaskInput,
 } from './core/commands.js'
 
 export {
@@ -37,6 +40,8 @@ export {
   type AnnotatorErrorCode,
   type AnnotatorOptions,
   type LabelDefinition,
+  type MaskAnnotation,
+  type MaskGeometry,
   type PolygonAnnotation,
   type PolygonGeometry,
   type RectAnnotation,
@@ -76,6 +81,7 @@ export {
   addLabel,
   getActiveLabel,
   setActiveLabel,
+  updateLabel,
 } from './labels/labels.js'
 
 export {
@@ -110,8 +116,18 @@ export type {
 
 export {
   activateTool,
+  activateToolById,
   cancelActiveGesture,
-} from './tools/controller.js'
+  getRegisteredTools,
+  getRegisteredToolsByCategory,
+  registerTool,
+  unregisterTool,
+  getTool,
+  listTools,
+  listToolsByCategory,
+  createDefaultToolRegistry,
+  createToolRegistry,
+} from './tools/index.js'
 
 export {
   createRectTool,
@@ -128,8 +144,11 @@ export type {
   InteractionDraft,
   NormalizedPointerInput,
   Tool,
+  ToolCategory,
   ToolContext,
   ToolController,
+  ToolRegistry,
+  KeyboardShortcut,
 } from './tools/types.js'
 
 export {
@@ -157,6 +176,19 @@ export {
 } from './tools/select-tool.js'
 
 export {
+  createBrushTool,
+  createBrushMaskGeometry,
+  useBrush,
+  type BrushToolOptions,
+} from './tools/brush-tool.js'
+
+export {
+  createEraserTool,
+  useEraser,
+  type EraserToolOptions,
+} from './tools/eraser-tool.js'
+
+export {
   CSAnnotatorElement,
   type ComponentAnnotatorOptions,
 } from './components/annotator-element.js'
@@ -166,3 +198,19 @@ export {
   mountAnnotator,
   unmountAnnotator,
 } from './components/define.js'
+
+export {
+  create,
+  mount,
+  csLabelTool,
+  type AnnotatorInstance,
+} from './cs-label-tool.js'
+
+export {
+  binaryMasksWithinDistance,
+  decodeBinaryMaskRle,
+  encodeBinaryMaskRle,
+  getBinaryMaskBounds,
+  splitBinaryMaskComponents,
+  translateBinaryMask,
+} from './mask/rle.js'

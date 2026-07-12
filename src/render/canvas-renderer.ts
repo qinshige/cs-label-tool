@@ -1,10 +1,20 @@
 import { getInternalState } from '../core/annotator.js'
 import { subscribe } from '../core/events.js'
-import type { Annotator, PolygonAnnotation, RectAnnotation } from '../core/types.js'
+import type {
+  Annotator,
+  MaskAnnotation,
+  PolygonAnnotation,
+  RectAnnotation,
+} from '../core/types.js'
 import { screenToImage } from '../viewport/viewport.js'
 import { queryAnnotations } from '../core/commands.js'
+import {
+  decodeBinaryMaskRle,
+  getBinaryMaskBounds,
+} from '../mask/rle.js'
 import { createCanvasLayers } from './canvas-layers.js'
 import { createRenderScheduler, type RenderLayer } from './scheduler.js'
+import type { EraserInteractionDraft } from '../tools/types.js'
 
 export interface CanvasRenderer {
   readonly eventCanvas: HTMLCanvasElement
@@ -19,6 +29,64 @@ function resetAndClear(
 ): void {
   context.setTransform(1, 0, 0, 1, 0, 0)
   context.clearRect(0, 0, canvas.width, canvas.height)
+}
+
+function renderMaskAnnotation(
+  context: CanvasRenderingContext2D,
+  annotation: MaskAnnotation,
+  color: string,
+  eraserDraft?: EraserInteractionDraft,
+): void {
+  const maskCanvas = document.createElement('canvas')
+  maskCanvas.width = annotation.geometry.width
+  maskCanvas.height = annotation.geometry.height
+  const maskContext = maskCanvas.getContext('2d')
+  if (maskContext === null) {
+    return
+  }
+  const imageData = maskContext.createImageData(
+    annotation.geometry.width,
+    annotation.geometry.height,
+  )
+  const mask = decodeBinaryMaskRle(
+    annotation.geometry.rle,
+    annotation.geometry.width,
+    annotation.geometry.height,
+  )
+  const colorMatch = /^#?([0-9a-f]{6})$/i.exec(color)
+  const hex = colorMatch?.[1] ?? '2c9c21'
+  const red = Number.parseInt(hex.slice(0, 2), 16)
+  const green = Number.parseInt(hex.slice(2, 4), 16)
+  const blue = Number.parseInt(hex.slice(4, 6), 16)
+  for (let index = 0; index < mask.length; index += 1) {
+    if (mask[index] !== 1) {
+      continue
+    }
+    const offset = index * 4
+    imageData.data[offset] = red
+    imageData.data[offset + 1] = green
+    imageData.data[offset + 2] = blue
+    imageData.data[offset + 3] = 96
+  }
+  maskContext.putImageData(imageData, 0, 0)
+  const firstEraserPoint = eraserDraft?.points[0]
+  if (eraserDraft !== undefined && firstEraserPoint !== undefined) {
+    maskContext.globalCompositeOperation = 'destination-out'
+    maskContext.beginPath()
+    maskContext.moveTo(firstEraserPoint.x, firstEraserPoint.y)
+    for (const point of eraserDraft.points.slice(1)) {
+      maskContext.lineTo(point.x, point.y)
+    }
+    if (eraserDraft.points.length === 1) {
+      maskContext.lineTo(firstEraserPoint.x, firstEraserPoint.y)
+    }
+    maskContext.lineWidth = eraserDraft.size
+    maskContext.lineCap = 'round'
+    maskContext.lineJoin = 'round'
+    maskContext.stroke()
+    maskContext.globalCompositeOperation = 'source-over'
+  }
+  context.drawImage(maskCanvas, 0, 0)
 }
 
 export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
@@ -81,12 +149,25 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
     context.lineWidth = 2 / scale
 
     for (const annotation of annotations) {
+      if (
+        state.interactionDraft?.type === 'vector' &&
+        state.interactionDraft.annotationId === annotation.id &&
+        state.interactionDraft.geometry.type === 'mask'
+      ) {
+        continue
+      }
       const label = state.labels.find(item => item.id === annotation.labelId)
       context.strokeStyle = label?.color ?? '#2c9c21'
       context.fillStyle = label?.color ?? '#2c9c21'
       context.globalAlpha = 1
+
+      let labelX = 0
+      let labelY = 0
+
       if (annotation.geometry.type === 'rect') {
         const rect = annotation as RectAnnotation
+        labelX = rect.geometry.x
+        labelY = rect.geometry.y
         context.globalAlpha = 0.16
         context.fillRect(
           rect.geometry.x,
@@ -101,12 +182,14 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
           rect.geometry.width,
           rect.geometry.height,
         )
-      } else {
+      } else if (annotation.geometry.type === 'polygon') {
         const polygon = annotation as PolygonAnnotation
         const first = polygon.geometry.points[0]
         if (first === undefined) {
           continue
         }
+        labelX = first[0]
+        labelY = first[1]
         context.beginPath()
         context.moveTo(first[0], first[1])
         for (const [x, y] of polygon.geometry.points.slice(1)) {
@@ -117,6 +200,57 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
         context.fill()
         context.globalAlpha = 1
         context.stroke()
+      } else if (annotation.geometry.type === 'mask') {
+        const mask = annotation as MaskAnnotation
+        const maskPixels = decodeBinaryMaskRle(
+          mask.geometry.rle,
+          mask.geometry.width,
+          mask.geometry.height,
+        )
+        const maskBounds = getBinaryMaskBounds(
+          maskPixels,
+          mask.geometry.width,
+          mask.geometry.height,
+        )
+        labelX = maskBounds?.x ?? 0
+        labelY = maskBounds?.y ?? 0
+        const eraserDraft = state.interactionDraft?.type === 'eraser'
+          ? state.interactionDraft
+          : undefined
+        renderMaskAnnotation(
+          context,
+          mask,
+          label?.color ?? '#2c9c21',
+          eraserDraft,
+        )
+      }
+
+      if (label?.name) {
+        context.font = `${14 / scale}px sans-serif`
+        context.fillStyle = '#ffffff'
+        context.strokeStyle = label.color
+        context.lineWidth = 3 / scale
+        context.lineJoin = 'round'
+        context.globalAlpha = 1
+
+        const textWidth = context.measureText(label.name).width
+        const textHeight = 14 / scale
+        const padding = 4 / scale
+
+        context.strokeRect(
+          labelX - padding,
+          labelY - textHeight - padding,
+          textWidth + padding * 2,
+          textHeight + padding * 2,
+        )
+        context.fillRect(
+          labelX - padding,
+          labelY - textHeight - padding,
+          textWidth + padding * 2,
+          textHeight + padding * 2,
+        )
+        context.fillStyle = label.color
+        context.fillText(label.name, labelX, labelY - padding)
       }
     }
   }
@@ -138,7 +272,9 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
           resetAndClear(context, canvas)
           const draft = state.interactionDraft
           if (draft !== null && state.viewport !== null) {
-            const label = state.labels.find(item => item.id === draft.labelId)
+            const label = 'labelId' in draft
+              ? state.labels.find(item => item.id === draft.labelId)
+              : undefined
             const { scale, offsetX, offsetY } = state.viewport
             context.setTransform(
               layerSize.dpr * scale,
@@ -151,14 +287,41 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
             context.strokeStyle = label?.color ?? '#2c9c21'
             context.lineWidth = 2 / scale
             context.setLineDash([6 / scale, 4 / scale])
-            if (draft.type === 'rect') {
+            if (draft.type === 'vector' && draft.geometry.type === 'mask') {
+              const source = state.annotationsById.get(draft.annotationId)
+              if (source?.geometry.type === 'mask') {
+                renderMaskAnnotation(
+                  context,
+                  { ...source, geometry: draft.geometry },
+                  label?.color ?? '#2c9c21',
+                )
+              }
+            } else if (draft.type === 'brush') {
+              const first = draft.points[0]
+              if (first !== undefined) {
+                context.beginPath()
+                context.moveTo(first.x, first.y)
+                for (const point of draft.points.slice(1)) {
+                  context.lineTo(point.x, point.y)
+                }
+                if (draft.points.length === 1) {
+                  context.lineTo(first.x, first.y)
+                }
+                context.globalAlpha = 0.7
+                context.lineWidth = draft.size
+                context.lineCap = 'round'
+                context.lineJoin = 'round'
+                context.setLineDash([])
+                context.stroke()
+              }
+            } else if (draft.type === 'rect') {
               context.strokeRect(
                 draft.geometry.x,
                 draft.geometry.y,
                 draft.geometry.width,
                 draft.geometry.height,
               )
-            } else {
+            } else if (draft.type !== 'eraser') {
               const points = draft.type === 'polygon'
                 ? draft.points.map(point => [point.x, point.y] as const)
                 : draft.geometry.type === 'polygon'
@@ -201,20 +364,49 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
               if (annotation === undefined) {
                 continue
               }
-              const points = annotation.geometry.type === 'rect'
+              const geometry = state.interactionDraft?.type === 'vector' &&
+                state.interactionDraft.annotationId === id
+                ? state.interactionDraft.geometry
+                : annotation.geometry
+              const points = geometry.type === 'rect'
                 ? [
-                    [annotation.geometry.x, annotation.geometry.y],
-                    [annotation.geometry.x + annotation.geometry.width / 2, annotation.geometry.y],
-                    [annotation.geometry.x + annotation.geometry.width, annotation.geometry.y],
-                    [annotation.geometry.x + annotation.geometry.width, annotation.geometry.y + annotation.geometry.height / 2],
-                    [annotation.geometry.x + annotation.geometry.width, annotation.geometry.y + annotation.geometry.height],
-                    [annotation.geometry.x + annotation.geometry.width / 2, annotation.geometry.y + annotation.geometry.height],
-                    [annotation.geometry.x, annotation.geometry.y + annotation.geometry.height],
-                    [annotation.geometry.x, annotation.geometry.y + annotation.geometry.height / 2],
+                    [geometry.x, geometry.y],
+                    [geometry.x + geometry.width / 2, geometry.y],
+                    [geometry.x + geometry.width, geometry.y],
+                    [geometry.x + geometry.width, geometry.y + geometry.height / 2],
+                    [geometry.x + geometry.width, geometry.y + geometry.height],
+                    [geometry.x + geometry.width / 2, geometry.y + geometry.height],
+                    [geometry.x, geometry.y + geometry.height],
+                    [geometry.x, geometry.y + geometry.height / 2],
                   ] as const
-                : annotation.geometry.points
+                : geometry.type === 'polygon'
+                  ? geometry.points
+                  : []
               context.fillStyle = '#ffffff'
               context.strokeStyle = '#1677ff'
+              context.globalAlpha = 1
+              if (geometry.type === 'mask') {
+                const maskBounds = getBinaryMaskBounds(
+                  decodeBinaryMaskRle(
+                    geometry.rle,
+                    geometry.width,
+                    geometry.height,
+                  ),
+                  geometry.width,
+                  geometry.height,
+                )
+                if (maskBounds !== null) {
+                  context.setLineDash([5 / scale, 3 / scale])
+                  context.lineWidth = 2 / scale
+                  context.strokeRect(
+                    maskBounds.x,
+                    maskBounds.y,
+                    maskBounds.width,
+                    maskBounds.height,
+                  )
+                  context.setLineDash([])
+                }
+              }
               for (const [x, y] of points) {
                 context.fillRect(x - size / 2, y - size / 2, size, size)
                 context.strokeRect(x - size / 2, y - size / 2, size, size)

@@ -8,7 +8,8 @@ import { createGridIndex, type GridIndex } from '../spatial/grid-index.js'
 import type { ImageSource, LoadedImage } from '../image/types.js'
 import type { CanvasRenderer } from '../render/canvas-renderer.js'
 import type { ViewportState } from '../viewport/viewport.js'
-import type { ToolController, InteractionDraft } from '../tools/types.js'
+import type { ToolController, InteractionDraft, ToolRegistry } from '../tools/types.js'
+import { createDefaultToolRegistry } from '../tools/registry.js'
 
 export interface HistoryEntry {
   readonly undo: (state: InternalState) => void
@@ -37,6 +38,7 @@ export interface InternalState {
   activeToolId: string | null
   interactionDraft: InteractionDraft | null
   selectedIds: string[]
+  readonly toolRegistry: ToolRegistry
 }
 
 export function createInternalState(options: AnnotatorOptions): InternalState {
@@ -65,5 +67,6 @@ export function createInternalState(options: AnnotatorOptions): InternalState {
     activeToolId: null,
     interactionDraft: null,
     selectedIds: [],
+    toolRegistry: createDefaultToolRegistry(),
   }
 }

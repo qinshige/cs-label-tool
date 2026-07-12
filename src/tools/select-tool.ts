@@ -5,6 +5,7 @@ import {
   AnnotatorError,
   type Annotation,
   type Annotator,
+  type MaskGeometry,
   type PolygonGeometry,
   type RectGeometry,
 } from '../core/types.js'
@@ -13,7 +14,15 @@ import {
   removeAnnotation,
   updateAnnotation,
 } from '../core/commands.js'
+import { emitChange } from '../core/events.js'
 import { getInternalState } from '../core/annotator.js'
+import {
+  binaryMasksWithinDistance,
+  decodeBinaryMaskRle,
+  encodeBinaryMaskRle,
+  mergeBinaryMasks,
+  translateBinaryMask,
+} from '../mask/rle.js'
 import { activateTool } from './controller.js'
 import type {
   NormalizedPointerInput,
@@ -118,32 +127,172 @@ function rectHandlePoints(geometry: RectGeometry): readonly [RectHandle, Point][
   ]
 }
 
+export function getRectResizeHandleAtPoint(
+  geometry: RectGeometry,
+  point: Point,
+  tolerance: number,
+): RectHandle | null {
+  const left = geometry.x
+  const top = geometry.y
+  const right = geometry.x + geometry.width
+  const bottom = geometry.y + geometry.height
+  const withinX = point.x >= left - tolerance && point.x <= right + tolerance
+  const withinY = point.y >= top - tolerance && point.y <= bottom + tolerance
+  const nearLeft = Math.abs(point.x - left) <= tolerance && withinY
+  const nearRight = Math.abs(point.x - right) <= tolerance && withinY
+  const nearTop = Math.abs(point.y - top) <= tolerance && withinX
+  const nearBottom = Math.abs(point.y - bottom) <= tolerance && withinX
+
+  if (nearLeft && nearTop) {
+    return 'north-west'
+  }
+  if (nearRight && nearTop) {
+    return 'north-east'
+  }
+  if (nearRight && nearBottom) {
+    return 'south-east'
+  }
+  if (nearLeft && nearBottom) {
+    return 'south-west'
+  }
+  if (nearLeft) {
+    return 'west'
+  }
+  if (nearRight) {
+    return 'east'
+  }
+  if (nearTop) {
+    return 'north'
+  }
+  if (nearBottom) {
+    return 'south'
+  }
+  return null
+}
+
 function annotationContains(annotation: Annotation, point: Point): boolean {
   if (annotation.geometry.type === 'rect') {
     return pointInRect(point, annotation.geometry)
   }
-  return pointInPolygon(
-    point,
-    annotation.geometry.points.map(([x, y]) => ({ x, y })),
-  )
+  if (annotation.geometry.type === 'polygon') {
+    return pointInPolygon(
+      point,
+      annotation.geometry.points.map(([x, y]) => ({ x, y })),
+    )
+  }
+  if (annotation.geometry.type === 'mask') {
+    const x = Math.floor(point.x)
+    const y = Math.floor(point.y)
+    if (
+      x < 0 ||
+      y < 0 ||
+      x >= annotation.geometry.width ||
+      y >= annotation.geometry.height
+    ) {
+      return false
+    }
+    const mask = decodeBinaryMaskRle(
+      annotation.geometry.rle,
+      annotation.geometry.width,
+      annotation.geometry.height,
+    )
+    return mask[y * annotation.geometry.width + x] === 1
+  }
+  return false
 }
 
 function translateGeometry(
-  geometry: RectGeometry | PolygonGeometry,
+  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
   delta: Point,
-): RectGeometry | PolygonGeometry {
+): RectGeometry | PolygonGeometry | MaskGeometry {
   if (geometry.type === 'rect') {
     return moveRect(geometry, delta)
   }
+  if (geometry.type === 'polygon') {
+    return {
+      type: 'polygon',
+      points: geometry.points.map(([x, y]) => [x + delta.x, y + delta.y]),
+    }
+  }
+  const mask = decodeBinaryMaskRle(
+    geometry.rle,
+    geometry.width,
+    geometry.height,
+  )
   return {
-    type: 'polygon',
-    points: geometry.points.map(([x, y]) => [x + delta.x, y + delta.y]),
+    type: 'mask',
+    width: geometry.width,
+    height: geometry.height,
+    rle: encodeBinaryMaskRle(translateBinaryMask(
+      mask,
+      geometry.width,
+      geometry.height,
+      delta.x,
+      delta.y,
+    )),
+  }
+}
+
+function updateAndMergeNearbyMasks(
+  annotator: Annotator,
+  annotation: Annotation,
+  geometry: MaskGeometry,
+  tolerance: number,
+): void {
+  let merged = decodeBinaryMaskRle(
+    geometry.rle,
+    geometry.width,
+    geometry.height,
+  )
+  const nearby = queryAnnotations(annotator, {
+    x: 0,
+    y: 0,
+    width: geometry.width,
+    height: geometry.height,
+  }).filter(candidate => {
+    if (
+      candidate.id === annotation.id ||
+      candidate.labelId !== annotation.labelId ||
+      candidate.geometry.type !== 'mask' ||
+      candidate.geometry.width !== geometry.width ||
+      candidate.geometry.height !== geometry.height
+    ) {
+      return false
+    }
+    return binaryMasksWithinDistance(
+      merged,
+      decodeBinaryMaskRle(
+        candidate.geometry.rle,
+        candidate.geometry.width,
+        candidate.geometry.height,
+      ),
+      geometry.width,
+      geometry.height,
+      tolerance,
+    )
+  })
+  for (const candidate of nearby) {
+    if (candidate.geometry.type !== 'mask') {
+      continue
+    }
+    merged = mergeBinaryMasks(merged, decodeBinaryMaskRle(
+      candidate.geometry.rle,
+      candidate.geometry.width,
+      candidate.geometry.height,
+    ))
+  }
+  updateAnnotation(annotator, annotation.id, {
+    ...geometry,
+    rle: encodeBinaryMaskRle(merged),
+  })
+  for (const candidate of nearby) {
+    removeAnnotation(annotator, candidate.id)
   }
 }
 
 function sameGeometry(
-  first: RectGeometry | PolygonGeometry,
-  second: RectGeometry | PolygonGeometry,
+  first: RectGeometry | PolygonGeometry | MaskGeometry,
+  second: RectGeometry | PolygonGeometry | MaskGeometry,
 ): boolean {
   return JSON.stringify(first) === JSON.stringify(second)
 }
@@ -177,7 +326,12 @@ type SelectState =
       readonly annotation: Annotation
       readonly start: Point
       readonly mode: DragMode
-      readonly currentGeometry: RectGeometry | PolygonGeometry
+      readonly currentGeometry: RectGeometry | PolygonGeometry | MaskGeometry
+      readonly moved: boolean
+      readonly clickTolerance: number
+      readonly cycleOnClick: boolean
+      readonly cycleIds: readonly string[]
+      readonly cycleNextIndex: number
     }
 
 function findHandleMode(
@@ -192,12 +346,18 @@ function findHandleMode(
     )
     return index < 0 ? null : { type: 'polygon-vertex', index }
   }
-  const handle = rectHandlePoints(annotation.geometry).find(([, handlePoint]) =>
-    squaredDistance(point, handlePoint) <= toleranceSquared,
-  )
-  return handle === undefined
-    ? null
-    : { type: 'rect-handle', handle: handle[0] }
+  if (annotation.geometry.type === 'rect') {
+    const handle = rectHandlePoints(annotation.geometry).find(([, handlePoint]) =>
+      squaredDistance(point, handlePoint) <= toleranceSquared,
+    )
+    const edgeHandle = handle === undefined
+      ? getRectResizeHandleAtPoint(annotation.geometry, point, tolerance)
+      : handle[0]
+    return edgeHandle === null
+      ? null
+      : { type: 'rect-handle', handle: edgeHandle }
+  }
+  return null
 }
 
 function geometryForPoint(state: Extract<SelectState, { phase: 'dragging' }>, point: Point) {
@@ -233,12 +393,17 @@ export function selectAnnotation(annotator: Annotator, id: string): void {
   }
   state.selectedIds = [id]
   state.renderer?.invalidate('interaction')
+  emitChange(annotator, 'selection:update')
 }
 
 export function clearSelection(annotator: Annotator): void {
   const state = getInternalState(annotator)
+  const hadSelection = state.selectedIds.length > 0
   state.selectedIds = []
   state.renderer?.invalidate('interaction')
+  if (hadSelection) {
+    emitChange(annotator, 'selection:update')
+  }
 }
 
 export function getSelection(annotator: Annotator): readonly string[] {
@@ -251,7 +416,12 @@ export function createSelectTool(): Tool {
 
   return {
     id: 'select',
+    name: '选择',
+    description: '选择、移动和编辑标注',
+    icon: '☝️',
     cursor: 'default',
+    category: 'selection',
+    shortcuts: [{ key: 's' }],
     handle(input: NormalizedPointerInput, context: ToolContext) {
       if (input.type === 'cancel') {
         state = { phase: 'idle' }
@@ -264,21 +434,33 @@ export function createSelectTool(): Tool {
         const selected = internal.selectedIds[0] === undefined
           ? undefined
           : internal.annotationsById.get(internal.selectedIds[0])
-        let annotation = selected
-        let mode = selected === undefined
+        let annotation: Annotation | undefined = selected
+        let mode: DragMode | null = selected === undefined
           ? null
           : findHandleMode(selected, input.imagePoint, tolerance)
 
+        const bounds: Bounds = {
+          x: input.imagePoint.x - tolerance,
+          y: input.imagePoint.y - tolerance,
+          width: tolerance * 2,
+          height: tolerance * 2,
+        }
+        const candidates = queryAnnotations(context.annotator, bounds)
+          .reverse()
+          .filter(candidate => annotationContains(candidate, input.imagePoint))
+        const candidateIds = candidates.map(candidate => candidate.id)
+        const selectedIndex = selected === undefined
+          ? -1
+          : candidateIds.indexOf(selected.id)
+        let cycleOnClick = false
+        let cycleNextIndex = 0
         if (mode === null) {
-          const bounds: Bounds = {
-            x: input.imagePoint.x - tolerance,
-            y: input.imagePoint.y - tolerance,
-            width: tolerance * 2,
-            height: tolerance * 2,
-          }
-          annotation = queryAnnotations(context.annotator, bounds)
-            .reverse()
-            .find(candidate => annotationContains(candidate, input.imagePoint))
+          const candidateIndex = selectedIndex >= 0 ? selectedIndex : 0
+          annotation = candidates[candidateIndex]
+          cycleOnClick = selectedIndex >= 0 && candidates.length > 1
+          cycleNextIndex = candidates.length > 0
+            ? (candidateIndex + 1) % candidates.length
+            : 0
           mode = annotation === undefined
             ? null
             : findHandleMode(annotation, input.imagePoint, tolerance) ?? { type: 'move' }
@@ -299,14 +481,22 @@ export function createSelectTool(): Tool {
           start: input.imagePoint,
           mode,
           currentGeometry: annotation.geometry,
+          moved: false,
+          clickTolerance: tolerance,
+          cycleOnClick,
+          cycleIds: candidateIds,
+          cycleNextIndex,
         }
         return
       }
       if (state.phase !== 'dragging' || input.pointerId !== state.pointerId) {
         return
       }
+      const moved = state.moved ||
+        squaredDistance(state.start, input.imagePoint) >
+          state.clickTolerance * state.clickTolerance
       const geometry = geometryForPoint(state, input.imagePoint)
-      state = { ...state, currentGeometry: geometry }
+      state = { ...state, currentGeometry: geometry, moved }
       if (input.type === 'move') {
         context.setDraft({
           type: 'vector',
@@ -316,24 +506,46 @@ export function createSelectTool(): Tool {
         })
         return
       }
+      if (!state.moved && state.cycleOnClick && state.cycleIds.length > 1) {
+        const nextId = state.cycleIds[
+          state.cycleNextIndex % state.cycleIds.length
+        ]
+        if (nextId !== undefined) {
+          selectAnnotation(context.annotator, nextId)
+        }
+        state = { phase: 'idle' }
+        context.clearDraft()
+        return
+      }
       const minimumImageSize = 1 / (
         getInternalState(context.annotator).viewport?.scale ?? 1
       )
       const valid = geometry.type === 'rect'
         ? geometry.width >= minimumImageSize &&
           geometry.height >= minimumImageSize
-        : validatePolygon(
-            geometry.points.map(([x, y]) => ({ x, y })),
-          ).valid && (
-            state.mode.type !== 'polygon-vertex' ||
-            polygonVertexIsSeparated(
-              geometry,
-              state.mode.index,
-              minimumImageSize,
+        : geometry.type === 'polygon'
+          ? validatePolygon(
+              geometry.points.map(([x, y]) => ({ x, y })),
+            ).valid && (
+              state.mode.type !== 'polygon-vertex' ||
+              polygonVertexIsSeparated(
+                geometry,
+                state.mode.index,
+                minimumImageSize,
+              )
             )
-          )
+          : true
       if (valid && !sameGeometry(state.annotation.geometry, geometry)) {
-        updateAnnotation(context.annotator, state.annotation.id, geometry)
+        if (geometry.type === 'mask') {
+          updateAndMergeNearbyMasks(
+            context.annotator,
+            state.annotation,
+            geometry,
+            state.clickTolerance,
+          )
+        } else {
+          updateAnnotation(context.annotator, state.annotation.id, geometry)
+        }
       }
       state = { phase: 'idle' }
       context.clearDraft()

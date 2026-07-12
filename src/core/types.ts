@@ -39,6 +39,13 @@ export interface PolygonGeometry {
   readonly points: readonly (readonly [number, number])[]
 }
 
+export interface MaskGeometry {
+  readonly type: 'mask'
+  readonly width: number
+  readonly height: number
+  readonly rle: readonly number[]
+}
+
 export interface RectAnnotation extends AnnotationBase {
   readonly geometry: RectGeometry
 }
@@ -47,7 +54,11 @@ export interface PolygonAnnotation extends AnnotationBase {
   readonly geometry: PolygonGeometry
 }
 
-export type Annotation = RectAnnotation | PolygonAnnotation
+export interface MaskAnnotation extends AnnotationBase {
+  readonly geometry: MaskGeometry
+}
+
+export type Annotation = RectAnnotation | PolygonAnnotation | MaskAnnotation
 
 export interface AnnotationSnapshot {
   readonly schemaVersion: 1

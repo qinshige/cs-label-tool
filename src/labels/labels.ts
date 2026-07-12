@@ -50,3 +50,23 @@ export function setActiveLabel(annotator: Annotator, labelId: string): void {
 export function getActiveLabel(annotator: Annotator): string | null {
   return getInternalState(annotator).activeLabelId
 }
+
+export function updateLabel(
+  annotator: Annotator,
+  labelId: string,
+  updates: Partial<Pick<LabelDefinition, 'name' | 'color'>>,
+): void {
+  const state = getInternalState(annotator)
+  const index = state.labels.findIndex(label => label.id === labelId)
+  if (index === -1) {
+    throw new AnnotatorError('UNKNOWN_LABEL', `Unknown label: ${labelId}`)
+  }
+  const previous = state.labels[index]
+  const next = Object.freeze({ ...previous, ...updates }) as LabelDefinition
+  commitDomainCommand(
+    annotator,
+    'label:update',
+    current => { current.labels[index] = next },
+    current => { current.labels[index] = previous! },
+  )
+}

@@ -1,4 +1,5 @@
 import type { AnnotationSnapshot, Annotator } from '../../src/index.js'
+import type { Bounds } from '../../src/index.js'
 
 declare global {
   interface Window {
@@ -7,6 +8,13 @@ declare global {
     unmountTestAnnotator: () => void
     controlsDisabledBeforeImage: boolean
     getTestZoom: () => number
+    demoTest: {
+      addRect: (labelId: string, bounds: Bounds) => string
+      hasImagePixels: () => boolean
+      imageToClient: (point: { x: number; y: number }) => { x: number; y: number }
+      selection: () => readonly string[]
+      snapshot: () => AnnotationSnapshot
+    }
     vectorTest: {
       ids: { rectId: string; polygonId: string }
       pointToClient: (point: { x: number; y: number }) => { x: number; y: number }

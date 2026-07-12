@@ -5,8 +5,10 @@ import type {
   InteractionDraft,
   NormalizedPointerInput,
   Tool,
+  ToolCategory,
   ToolContext,
   ToolController,
+  ToolRegistry,
 } from './types.js'
 
 function createToolContext(annotator: Annotator): ToolContext {
@@ -15,11 +17,18 @@ function createToolContext(annotator: Annotator): ToolContext {
     setDraft(draft: InteractionDraft) {
       const state = getInternalState(annotator)
       state.interactionDraft = draft
+      if (draft.type === 'eraser') {
+        state.renderer?.invalidate('annotations')
+      }
       state.renderer?.invalidate('interaction')
     },
     clearDraft() {
       const state = getInternalState(annotator)
+      const redrawAnnotations = state.interactionDraft?.type === 'eraser'
       state.interactionDraft = null
+      if (redrawAnnotations) {
+        state.renderer?.invalidate('annotations')
+      }
       state.renderer?.invalidate('interaction')
     },
   }
@@ -54,6 +63,7 @@ function normalizePointer(
 export function createToolController(
   annotator: Annotator,
   canvas: HTMLCanvasElement,
+  registry: ToolRegistry,
 ): ToolController {
   const context = createToolContext(annotator)
   let activeTool: Tool | null = null
@@ -105,6 +115,12 @@ export function createToolController(
       canvas.style.cursor = tool.cursor
       getInternalState(annotator).activeToolId = tool.id
     },
+    activateById(toolId) {
+      const tool = registry.get(toolId)
+      if (tool !== undefined) {
+        this.activate(tool)
+      }
+    },
     cancel() {
       activeTool?.cancel(context)
     },
@@ -132,6 +148,7 @@ function requireController(annotator: Annotator): ToolController {
   state.toolController ??= createToolController(
     annotator,
     state.renderer.eventCanvas,
+    getInternalState(annotator).toolRegistry!,
   )
   return state.toolController
 }
@@ -140,6 +157,21 @@ export function activateTool(annotator: Annotator, tool: Tool): void {
   requireController(annotator).activate(tool)
 }
 
+export function activateToolById(annotator: Annotator, toolId: string): void {
+  requireController(annotator).activateById(toolId)
+}
+
 export function cancelActiveGesture(annotator: Annotator): void {
   getInternalState(annotator).toolController?.cancel()
+}
+
+export function getRegisteredTools(annotator: Annotator): readonly Tool[] {
+  return getInternalState(annotator).toolRegistry.list()
+}
+
+export function getRegisteredToolsByCategory(
+  annotator: Annotator,
+  category: ToolCategory,
+): readonly Tool[] {
+  return getInternalState(annotator).toolRegistry.listByCategory(category)
 }

@@ -16,6 +16,7 @@ import {
   selectAnnotation,
   undo,
   updateAnnotation,
+  updateAnnotationLabel,
 } from '../../src/index.js'
 
 function createTestAnnotator(historyLimit = 20) {
@@ -78,6 +79,26 @@ describe('domain commands', () => {
 
     expect(removeAnnotation(annotator, id)).toBe(true)
     expect(getSnapshot(annotator).annotations).toHaveLength(0)
+  })
+
+  test('updates annotation labels through history', () => {
+    const annotator = createTestAnnotator()
+    addLabel(annotator, { id: 'person', name: 'Person', color: '#ff4d4f' })
+    addLabel(annotator, { id: 'vehicle', name: 'Vehicle', color: '#1677ff' })
+    const id = addRect(annotator, {
+      labelId: 'person',
+      x: 10,
+      y: 20,
+      width: 30,
+      height: 40,
+    })
+
+    updateAnnotationLabel(annotator, id, 'vehicle')
+    expect(getSnapshot(annotator).annotations[0]?.labelId).toBe('vehicle')
+    undo(annotator)
+    expect(getSnapshot(annotator).annotations[0]?.labelId).toBe('person')
+    redo(annotator)
+    expect(getSnapshot(annotator).annotations[0]?.labelId).toBe('vehicle')
   })
 
   test('bounds undo history to the configured capacity', () => {

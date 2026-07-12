@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import {
+  getRectResizeHandleAtPoint,
   movePolygonVertex,
   moveRect,
   resizeRect,
@@ -29,6 +30,15 @@ describe('vector editing geometry', () => {
       'north-west',
       { x: 5, y: 15 },
     )).toEqual({ type: 'rect', x: 5, y: 15, width: 35, height: 45 })
+  })
+
+  test('detects rectangle edges as resize handles', () => {
+    const rect = { type: 'rect' as const, x: 10, y: 20, width: 100, height: 80 }
+
+    expect(getRectResizeHandleAtPoint(rect, { x: 110, y: 45 }, 4)).toBe('east')
+    expect(getRectResizeHandleAtPoint(rect, { x: 45, y: 20 }, 4)).toBe('north')
+    expect(getRectResizeHandleAtPoint(rect, { x: 10, y: 100 }, 4)).toBe('south-west')
+    expect(getRectResizeHandleAtPoint(rect, { x: 60, y: 60 }, 4)).toBeNull()
   })
 
   test('removes a polygon vertex only when three valid points remain', () => {

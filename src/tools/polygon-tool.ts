@@ -76,7 +76,21 @@ export function reducePolygonTool(
 }
 
 export interface PolygonToolOptions {
-  readonly labelId: string
+  readonly labelId?: string
+}
+
+function resolveLabelId(
+  annotator: Annotator,
+  configuredLabelId: string | undefined,
+): string {
+  const labelId = configuredLabelId ?? getActiveLabel(annotator)
+  if (labelId === null) {
+    throw new AnnotatorError(
+      'UNKNOWN_LABEL',
+      'A label must be active before drawing a polygon.',
+    )
+  }
+  return labelId
 }
 
 export function createPolygonTool(options: PolygonToolOptions): Tool {
@@ -88,17 +102,19 @@ export function createPolygonTool(options: PolygonToolOptions): Tool {
   ) => {
     state = result.state
     if (result.draft !== undefined) {
+      const labelId = resolveLabelId(context.annotator, options.labelId)
       context.setDraft({
         type: 'polygon',
         points: result.draft,
-        labelId: options.labelId,
+        labelId,
       })
     } else if (state.points.length === 0) {
       context.clearDraft()
     }
     if (result.commit !== undefined) {
+      const labelId = resolveLabelId(context.annotator, options.labelId)
       addPolygon(context.annotator, {
-        labelId: options.labelId,
+        labelId,
         points: result.commit,
       })
       context.clearDraft()
@@ -111,7 +127,12 @@ export function createPolygonTool(options: PolygonToolOptions): Tool {
 
   return {
     id: 'polygon',
+    name: '多边形',
+    description: '绘制多边形标注',
+    icon: '⬡',
     cursor: 'crosshair',
+    category: 'drawing',
+    shortcuts: [{ key: 'p' }],
     handle(input: NormalizedPointerInput, context: ToolContext) {
       if (input.type === 'cancel') {
         applyResult(reducePolygonTool(state, { type: 'cancel' }), context)
@@ -156,12 +177,6 @@ export function usePolygon(
   annotator: Annotator,
   options: Partial<PolygonToolOptions> = {},
 ): void {
-  const labelId = options.labelId ?? getActiveLabel(annotator)
-  if (labelId === null) {
-    throw new AnnotatorError(
-      'UNKNOWN_LABEL',
-      'A label must be active before drawing a polygon.',
-    )
-  }
+  const labelId = resolveLabelId(annotator, options.labelId)
   activateTool(annotator, createPolygonTool({ labelId }))
 }

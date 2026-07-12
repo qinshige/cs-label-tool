@@ -11,6 +11,8 @@ export type ChangeKind =
   | 'image:load'
   | 'label:activate'
   | 'label:add'
+  | 'label:update'
+  | 'selection:update'
 
 export interface ChangeEvent {
   readonly type: 'change'
