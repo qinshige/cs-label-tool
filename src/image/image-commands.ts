@@ -35,6 +35,7 @@ export async function setImageSource(
 ): Promise<void> {
   const state = getInternalState(annotator)
   const hadImage = state.image !== null
+  // 切图前终止上一次异步加载，并清理所有依赖旧图片坐标系的交互状态。
   state.imageAbortController?.abort()
   state.imageAbortController = null
   state.image = null
@@ -43,6 +44,7 @@ export async function setImageSource(
   state.interactionDraft = null
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
+  state.renderer?.invalidate('interaction')
   state.renderer?.invalidate('interaction')
   state.imageSource?.dispose()
   state.imageSource = null
@@ -55,6 +57,7 @@ export async function setImageSource(
   state.imageSource = source
   const image = await source.load(controller.signal)
   const currentState = getInternalState(annotator)
+  // 加载期间可能再次切图。只有当前 source 仍然有效时，才允许写回结果。
   if (currentState.imageSource !== source || controller.signal.aborted) {
     return
   }
@@ -95,6 +98,7 @@ export function fitToScreen(annotator: Annotator): void {
   state.viewport = fitViewport(viewport, state.image)
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
+  state.renderer?.invalidate('interaction')
 }
 
 export function zoomTo(
@@ -110,6 +114,7 @@ export function zoomTo(
   )
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
+  state.renderer?.invalidate('interaction')
 }
 
 export function zoomBy(
@@ -126,9 +131,11 @@ export function panBy(annotator: Annotator, delta: Point): void {
   state.viewport = panViewport(viewport, delta)
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
+  state.renderer?.invalidate('interaction')
 }
 
 export function imageToClient(annotator: Annotator, point: Point): Point {
+  // viewport 负责图片坐标到容器坐标，容器偏移再把结果转换为页面客户区坐标。
   const { state, viewport } = requireViewport(annotator)
   const screenPoint = imageToScreen(viewport, point)
   const bounds = state.container.getBoundingClientRect()
@@ -136,6 +143,7 @@ export function imageToClient(annotator: Annotator, point: Point): Point {
 }
 
 export function clientToImage(annotator: Annotator, point: Point): Point {
+  // 所有绘制和编辑统一回到原图坐标，缩放和平移只影响显示，不污染标注数据。
   const { state, viewport } = requireViewport(annotator)
   const bounds = state.container.getBoundingClientRect()
   return screenToImage(viewport, {

@@ -43,6 +43,7 @@ export function reduceRectTool(
   input: RectToolInput,
   minimumSize = 0,
 ): RectToolResult {
+  // reducer 只计算状态和结果，不直接读写标注器，便于单元测试。
   if (input.type === 'cancel') {
     return { state: createRectToolState() }
   }
@@ -75,6 +76,7 @@ export function reduceRectTool(
   }
 
   if (draft.width < minimumSize || draft.height < minimumSize) {
+    // 过滤误点击和过小矩形，不生成历史记录。
     return { state: createRectToolState() }
   }
   return { state: createRectToolState(), commit: draft }
@@ -123,6 +125,7 @@ export function createRectTool(options: RectToolOptions): Tool {
       context.clearDraft()
     }
     if (result.commit !== undefined) {
+      // 只有 pointerup 产生 commit 时才写入持久标注。
       const labelId = resolveLabelId(context.annotator, options.labelId)
       addRect(context.annotator, {
         labelId,

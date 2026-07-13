@@ -262,6 +262,62 @@ test('demo supports rectangle editing and viewport dragging', async ({ page }) =
   expect(afterPan.y).toBeGreaterThan(beforePan.y)
 })
 
+test('space-pan and zoom keep drawing and editing aligned', async ({ page }) => {
+  await page.goto('/demo/index.html')
+  await expect(page.locator('html')).toHaveAttribute('data-ready', 'true')
+
+  const canvas = page.locator('canvas[data-layer="event"]')
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  if (bounds === null) return
+
+  const originBefore = await page.evaluate(() =>
+    window.demoTest.imageToClient({ x: 0, y: 0 }),
+  )
+  await page.locator('button[data-tool-id="rect"]').click()
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await page.keyboard.down('Space')
+  await page.mouse.down()
+  await page.mouse.move(bounds.x + bounds.width / 2 + 60, bounds.y + bounds.height / 2 + 35)
+  await page.mouse.up()
+  await page.keyboard.up('Space')
+
+  expect(await page.evaluate(() => window.demoTest.snapshot().annotations))
+    .toHaveLength(0)
+  const originAfter = await page.evaluate(() =>
+    window.demoTest.imageToClient({ x: 0, y: 0 }),
+  )
+  expect(originAfter.x - originBefore.x).toBeCloseTo(60, 0)
+  expect(originAfter.y - originBefore.y).toBeCloseTo(35, 0)
+
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await page.mouse.wheel(0, -600)
+  const start = { x: bounds.x + bounds.width / 2 - 70, y: bounds.y + bounds.height / 2 - 45 }
+  const end = { x: bounds.x + bounds.width / 2 + 70, y: bounds.y + bounds.height / 2 + 45 }
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(end.x, end.y)
+  await page.mouse.up()
+
+  const rect = await page.evaluate(() => window.demoTest.snapshot().annotations[0])
+  expect(rect?.geometry.type).toBe('rect')
+  if (rect?.geometry.type !== 'rect') return
+
+  await page.locator('button[data-tool-id="select"]').click()
+  await page.mouse.click((start.x + end.x) / 2, (start.y + end.y) / 2)
+  expect(await page.evaluate(() => window.demoTest.selection())).toEqual([rect.id])
+
+  await page.mouse.move((start.x + end.x) / 2, (start.y + end.y) / 2)
+  await page.mouse.down()
+  await page.mouse.move((start.x + end.x) / 2 + 30, (start.y + end.y) / 2 + 20)
+  await page.mouse.up()
+  const moved = await page.evaluate(() => window.demoTest.snapshot().annotations[0])
+  expect(moved?.geometry.type).toBe('rect')
+  if (moved?.geometry.type !== 'rect') return
+  expect(moved.geometry.x).toBeGreaterThan(rect.geometry.x)
+  expect(moved.geometry.y).toBeGreaterThan(rect.geometry.y)
+})
+
 test('demo resizes a selected rectangle by dragging its border', async ({
   page,
 }) => {

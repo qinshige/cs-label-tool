@@ -27,6 +27,7 @@ function resetAndClear(
   context: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
 ): void {
+  // clearRect 会受当前 transform 影响，清空前必须恢复单位矩阵。
   context.setTransform(1, 0, 0, 1, 0, 0)
   context.clearRect(0, 0, canvas.width, canvas.height)
 }
@@ -37,6 +38,7 @@ function renderMaskAnnotation(
   color: string,
   eraserDraft?: EraserInteractionDraft,
 ): void {
+  // Mask 先在原图尺寸的离屏 Canvas 上生成，再复用主 Canvas 的 viewport 变换绘制。
   const maskCanvas = document.createElement('canvas')
   maskCanvas.width = annotation.geometry.width
   maskCanvas.height = annotation.geometry.height
@@ -71,6 +73,7 @@ function renderMaskAnnotation(
   maskContext.putImageData(imageData, 0, 0)
   const firstEraserPoint = eraserDraft?.points[0]
   if (eraserDraft !== undefined && firstEraserPoint !== undefined) {
+    // 实时预览只改离屏画面；真正的 Mask 数据在 pointerup 时一次性提交。
     maskContext.globalCompositeOperation = 'destination-out'
     maskContext.beginPath()
     maskContext.moveTo(firstEraserPoint.x, firstEraserPoint.y)
@@ -105,6 +108,9 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
       return
     }
     const { scale, offsetX, offsetY } = state.viewport
+    // 缩小时使用高质量插值；放大时保留原始像素边界。
+    context.imageSmoothingEnabled = scale < 1
+    context.imageSmoothingQuality = 'high'
     context.setTransform(
       layerSize.dpr * scale,
       0,
@@ -131,6 +137,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
       x: layerSize.width,
       y: layerSize.height,
     })
+    // 只查询当前 viewport 内可能可见的标注。
     const annotations = queryAnnotations(annotator, {
       x: Math.min(topLeft.x, bottomRight.x),
       y: Math.min(topLeft.y, bottomRight.y),
@@ -138,6 +145,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
       height: Math.abs(bottomRight.y - topLeft.y),
     })
     const { scale, offsetX, offsetY } = state.viewport
+    context.imageSmoothingEnabled = false
     context.setTransform(
       layerSize.dpr * scale,
       0,
@@ -154,6 +162,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
         state.interactionDraft.annotationId === annotation.id &&
         state.interactionDraft.geometry.type === 'mask'
       ) {
+        // Mask 拖拽时由 interaction 层绘制新位置，持久层暂时隐藏旧位置。
         continue
       }
       const label = state.labels.find(item => item.id === annotation.labelId)
@@ -207,6 +216,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
           mask.geometry.width,
           mask.geometry.height,
         )
+        // 标签和选框使用真实像素边界，不能固定放在整图左上角。
         const maskBounds = getBinaryMaskBounds(
           maskPixels,
           mask.geometry.width,
@@ -259,6 +269,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
     requestFrame: callback => requestAnimationFrame(callback),
     cancelFrame: handle => cancelAnimationFrame(handle),
     render(dirtyLayers) {
+      // 每层只在被标记为 dirty 时重绘。
       if (dirtyLayers.has('image')) {
         renderImage()
       }
@@ -276,6 +287,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
               ? state.labels.find(item => item.id === draft.labelId)
               : undefined
             const { scale, offsetX, offsetY } = state.viewport
+            context.imageSmoothingEnabled = false
             context.setTransform(
               layerSize.dpr * scale,
               0,
@@ -297,6 +309,8 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
                 )
               }
             } else if (draft.type === 'brush') {
+              // 画笔预览使用工具配置色；提交后的 Mask 使用标签色。
+              context.strokeStyle = draft.color
               const first = draft.points[0]
               if (first !== undefined) {
                 context.beginPath()
@@ -348,6 +362,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
             }
           }
           if (state.viewport !== null) {
+            // 选框和控制点也属于 interaction 层，尺寸始终按屏幕像素保持稳定。
             const { scale, offsetX, offsetY } = state.viewport
             context.setTransform(
               layerSize.dpr * scale,
@@ -419,7 +434,9 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
   })
   const unsubscribe = subscribe(annotator, 'change', event => {
     if (event.kind !== 'label:activate') {
+      // 标注变化后同时刷新控制点，避免数据已更新但选框仍停在旧位置。
       scheduler.invalidate('annotations')
+      scheduler.invalidate('interaction')
     }
   })
   let destroyed = false

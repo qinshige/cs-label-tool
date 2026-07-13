@@ -33,6 +33,7 @@ export interface BrushInteractionDraft {
   readonly type: 'brush'
   readonly points: readonly Point[]
   readonly size: number
+  readonly color: string
   readonly labelId: string
 }
 
@@ -57,6 +58,7 @@ export type InteractionDraft =
   | VectorInteractionDraft
 
 export interface ToolContext {
+  // Draft 只用于实时预览，不进入历史记录；工具在手势完成后自行提交正式数据。
   readonly annotator: Annotator
   readonly setDraft: (draft: InteractionDraft) => void
   readonly clearDraft: () => void
@@ -73,6 +75,7 @@ export interface KeyboardShortcut {
 export type ToolCategory = 'selection' | 'drawing' | 'navigation' | 'utility'
 
 export interface Tool {
+  // 所有工具都接收统一后的图片坐标，因此不需要各自处理 DPR、缩放和平移。
   readonly id: string
   readonly name: string
   readonly description?: string

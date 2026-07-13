@@ -75,6 +75,7 @@ export function imageToScreen(viewport: ViewportState, point: Point): Point {
   )
 }
 
+/** screenToImage 与 imageToScreen 使用同一矩阵的逆变换，避免两套公式产生误差。 */
 export function screenToImage(viewport: ViewportState, point: Point): Point {
   return transformPoint(
     invertMatrix(
@@ -93,6 +94,7 @@ export function zoomAt(
   screenAnchor: Point,
   requestedScale: number,
 ): ViewportState {
+  // 先记录锚点对应的原图坐标，再反推新 offset，保证缩放前后锚点不跳动。
   const imageAnchor = screenToImage(viewport, screenAnchor)
   const scale = clampScale(viewport, requestedScale)
   return {
@@ -126,6 +128,7 @@ export function fitViewport(
       viewport.height / imageSize.height,
     ),
   )
+  // 使用同一个 scale 等比缩放，并把剩余空间平均分到两侧。
   return {
     ...viewport,
     scale,

@@ -10,6 +10,7 @@ import { cloneAnnotation } from './immutability.js'
 
 const states = new WeakMap<Annotator, InternalState>()
 
+/** 通过不透明句柄读取内部状态，同时统一拦截已销毁实例。 */
 export function getInternalState(annotator: Annotator): InternalState {
   const state = states.get(annotator)
   if (state === undefined || state.destroyed) {
@@ -52,6 +53,7 @@ export function destroyAnnotator(annotator: Annotator): void {
 
 export function getSnapshot(annotator: Annotator): AnnotationSnapshot {
   const state = getInternalState(annotator)
+  // 快照中的标注会深拷贝并冻结，调用方不能绕过命令层直接修改内部数据。
   return Object.freeze({
     schemaVersion: 1 as const,
     revision: state.revision,

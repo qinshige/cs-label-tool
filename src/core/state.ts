@@ -12,10 +12,15 @@ import type { ToolController, InteractionDraft, ToolRegistry } from '../tools/ty
 import { createDefaultToolRegistry } from '../tools/registry.js'
 
 export interface HistoryEntry {
+  /** 同一条历史记录必须同时描述正向执行和反向恢复。 */
   readonly undo: (state: InternalState) => void
   readonly redo: (state: InternalState) => void
 }
 
+/**
+ * 标注器的唯一可变状态。对外只暴露不透明 Annotator 句柄，所有读写都经过命令层。
+ * 这样可以保证数组、ID 索引、空间索引、历史记录和渲染通知始终一起更新。
+ */
 export interface InternalState {
   readonly container: HTMLElement
   readonly historyLimit: number

@@ -26,6 +26,7 @@ export function createRenderScheduler(
     if (destroyed || dirtyLayers.size === 0) {
       return
     }
+    // 拷贝后立即清空，绘制期间新增的失效请求会进入下一帧。
     const layers = new Set(dirtyLayers)
     dirtyLayers.clear()
     options.render(layers)
@@ -37,6 +38,7 @@ export function createRenderScheduler(
         return
       }
       dirtyLayers.add(layer)
+      // 同一帧内多次 invalidate 只安排一次 requestAnimationFrame。
       if (frame === null) {
         frame = options.requestFrame(flush)
       }

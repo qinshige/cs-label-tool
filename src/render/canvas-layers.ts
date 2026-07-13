@@ -15,6 +15,7 @@ export interface CanvasLayerSize {
 }
 
 const layerNames: readonly CanvasLayerName[] = [
+  // 从下到上：底图、持久标注、临时交互、透明事件层。
   'image',
   'annotations',
   'interaction',
@@ -37,6 +38,7 @@ export function createCanvasLayers(container: HTMLElement): CanvasLayerSet {
     canvas.style.width = '100%'
     canvas.style.height = '100%'
     canvas.style.zIndex = String(index)
+    // 只有最上层接收事件，其他 Canvas 永远不会拦截鼠标。
     canvas.style.pointerEvents = name === 'event' ? 'auto' : 'none'
     container.append(canvas)
     return [name, canvas] as const
@@ -53,6 +55,7 @@ export function createCanvasLayers(container: HTMLElement): CanvasLayerSet {
       const width = Math.max(1, Math.round(bounds.width))
       const height = Math.max(1, Math.round(bounds.height))
       const dpr = Math.max(1, window.devicePixelRatio || 1)
+      // CSS 尺寸保持不变，backing store 乘 DPR，避免高分屏绘制发虚。
       for (const canvas of Object.values(canvases)) {
         canvas.width = Math.round(width * dpr)
         canvas.height = Math.round(height * dpr)

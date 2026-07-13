@@ -1,6 +1,7 @@
 import type { Bounds } from '../geometry/types.js'
 
 export interface GridIndex {
+  // 一个标注可能跨越多个网格；cells 用于召回候选，items 保存精确包围盒。
   readonly cellSize: number
   readonly cells: Map<string, Set<string>>
   readonly items: Map<string, Bounds>
@@ -24,6 +25,7 @@ function assertBounds(bounds: Bounds): void {
 }
 
 function getCellKeys(cellSize: number, bounds: Bounds): string[] {
+  // 边界落在哪些网格中，插入、更新、删除和查询都使用同一套计算规则。
   const minX = Math.floor(bounds.x / cellSize)
   const minY = Math.floor(bounds.y / cellSize)
   const maxX = Math.floor((bounds.x + bounds.width) / cellSize)
@@ -102,6 +104,7 @@ export function insertSpatialItem(
 
   addToCells(index.cells, index.cellSize, id, bounds)
   index.items.set(id, { ...bounds })
+  // order 记录插入顺序，查询结果据此保持稳定，也对应画布上的绘制层级。
   index.order.set(id, index.nextOrder)
   index.nextOrder += 1
   return index
@@ -150,6 +153,7 @@ export function querySpatialBounds(
 ): string[] {
   assertBounds(bounds)
   const candidates = new Set<string>()
+  // 网格查询是粗筛：先合并所有相关单元格，再用真实包围盒剔除误命中。
   for (const key of getCellKeys(index.cellSize, bounds)) {
     for (const id of index.cells.get(key) ?? []) {
       candidates.add(id)

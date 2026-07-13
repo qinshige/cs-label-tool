@@ -36,6 +36,7 @@ export function reducePolygonTool(
   state: PolygonToolState,
   input: PolygonToolInput,
 ): PolygonToolResult {
+  // points 是已确认顶点，preview 只用于显示当前鼠标位置。
   if (input.type === 'cancel') {
     return { state: createPolygonToolState() }
   }
@@ -51,6 +52,7 @@ export function reducePolygonTool(
     return { state: next, draft: next.points }
   }
   if (input.type === 'commit') {
+    // 提交前统一检查点数、自相交和面积。
     if (!validatePolygon(state.points).valid) {
       return { state }
     }
@@ -139,6 +141,7 @@ export function createPolygonTool(options: PolygonToolOptions): Tool {
         return
       }
       if (input.type === 'move' && state.points.length > 0) {
+        // 移动鼠标只更新预览，不增加正式顶点。
         applyResult(reducePolygonTool(state, {
           type: 'move',
           imagePoint: input.imagePoint,

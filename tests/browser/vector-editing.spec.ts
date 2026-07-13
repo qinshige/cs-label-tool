@@ -189,3 +189,63 @@ test('creates polygons and edits vectors in original-image coordinates', async (
     .toEqual(snapshot.annotations)
   expect(pageErrors).toEqual([])
 })
+
+test('edits rectangle handles and polygon vertices after zooming', async ({
+  page,
+}) => {
+  await page.goto('/tests/fixtures/vector-editing.html')
+  await expect(page.locator('html')).toHaveAttribute('data-ready', 'true')
+  const ids = await page.evaluate(() => window.vectorTest.ids)
+
+  await page.getByRole('button', { name: 'Select' }).click()
+  await page.evaluate(() =>
+    window.vectorTest.zoomAtPoint(4, { x: 200, y: 175 }),
+  )
+
+  const rectCenter = await page.evaluate(() =>
+    window.vectorTest.pointToClient({ x: 200, y: 175 }),
+  )
+  await page.mouse.click(rectCenter.x, rectCenter.y)
+  expect(await page.evaluate(() => window.vectorTest.selection())).toEqual([
+    ids.rectId,
+  ])
+  await dragImagePoint(page, { x: 300, y: 175 }, { x: 340, y: 175 })
+
+  const resized = await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.rectId,
+    )?.geometry,
+  )
+  expect(resized?.type).toBe('rect')
+  if (resized?.type !== 'rect') return
+  expect(Math.abs(resized.x - 100)).toBeLessThan(0.2)
+  expect(Math.abs(resized.y - 100)).toBeLessThan(0.2)
+  expect(Math.abs(resized.width - 240)).toBeLessThan(0.2)
+  expect(Math.abs(resized.height - 150)).toBeLessThan(0.2)
+
+  await page.evaluate(() => {
+    window.vectorTest.zoom(1)
+    window.vectorTest.zoomAtPoint(4, { x: 550, y: 150 })
+  })
+  const polygonCenter = await page.evaluate(() =>
+    window.vectorTest.pointToClient({ x: 550, y: 150 }),
+  )
+  await page.mouse.click(polygonCenter.x, polygonCenter.y)
+  expect(await page.evaluate(() => window.vectorTest.selection())).toEqual([
+    ids.polygonId,
+  ])
+  await dragImagePoint(page, { x: 500, y: 100 }, { x: 520, y: 120 })
+
+  const edited = await page.evaluate(() =>
+    window.vectorTest.snapshot().annotations.find(
+      annotation => annotation.id === window.vectorTest.ids.polygonId,
+    )?.geometry,
+  )
+  expect(edited?.type).toBe('polygon')
+  if (edited?.type !== 'polygon') return
+  expect(Math.abs((edited.points[0]?.[0] ?? 0) - 520)).toBeLessThan(0.25)
+  expect(Math.abs((edited.points[0]?.[1] ?? 0) - 120)).toBeLessThan(0.25)
+  expect(edited.points.slice(1)).toEqual([
+    [600, 100], [600, 220], [500, 220],
+  ])
+})

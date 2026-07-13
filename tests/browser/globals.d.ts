@@ -23,6 +23,7 @@ declare global {
       undo: () => boolean
       redo: () => boolean
       zoom: (scale: number) => void
+      zoomAtPoint: (scale: number, point: { x: number; y: number }) => void
     }
   }
 }

@@ -45,6 +45,7 @@ export function getActiveToolId(annotator: Annotator): string | null {
 }
 
 export function deleteSelectedAnnotations(annotator: Annotator): number {
+  // 复制选中列表，避免删除标注时 selection:update 影响当前遍历。
   const selectedIds = [...getSelection(annotator)]
   let removed = 0
   for (const id of selectedIds) {
@@ -68,6 +69,7 @@ export function updateSelectedAnnotationsLabel(
 }
 
 export function createToolApi(annotator: Annotator): AnnotationToolApi {
+  // 对外暴露绑定 annotator 的门面，业务层调用时不必反复传入实例。
   return Object.freeze({
     select() {
       useSelect(annotator)

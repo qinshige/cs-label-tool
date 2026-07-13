@@ -34,7 +34,6 @@ import {
   usePolygon,
   useRect,
   useSelect,
-  panBy,
   zoomBy,
   type CSAnnotatorElement,
   type Tool,
@@ -382,36 +381,6 @@ element.addEventListener('drop', (e) => {
   e.preventDefault()
   const file = e.dataTransfer!.files[0]
   if (file?.type.startsWith('image/')) loadImageFromFile(file)
-})
-
-let isPanning = false
-let lastPanPoint = { x: 0, y: 0 }
-
-element.addEventListener('mousedown', (e) => {
-  if (e.button === 1 || (e.button === 0 && e.altKey)) {
-    isPanning = true
-    lastPanPoint = { x: e.clientX, y: e.clientY }
-    element.style.cursor = 'grabbing'
-  }
-})
-
-element.addEventListener('mousemove', (e) => {
-  if (isPanning) {
-    const dx = e.clientX - lastPanPoint.x
-    const dy = e.clientY - lastPanPoint.y
-    panBy(annotator, { x: dx, y: dy })
-    lastPanPoint = { x: e.clientX, y: e.clientY }
-  }
-})
-
-element.addEventListener('mouseup', () => {
-  isPanning = false
-  element.style.cursor = 'default'
-})
-
-element.addEventListener('mouseleave', () => {
-  isPanning = false
-  element.style.cursor = 'default'
 })
 
 btnUndo.addEventListener('click', () => { undo(annotator) && toast('撤销') })

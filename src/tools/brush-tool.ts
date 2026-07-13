@@ -61,6 +61,7 @@ function paintCircle(
   point: Point,
   radius: number,
 ): void {
+  // 每个采样点绘制一个实心圆，圆形叠加后形成连续笔迹。
   const minX = Math.max(0, Math.floor(point.x - radius))
   const maxX = Math.min(width - 1, Math.ceil(point.x + radius))
   const minY = Math.max(0, Math.floor(point.y - radius))
@@ -78,6 +79,7 @@ function paintCircle(
 }
 
 function interpolateStroke(points: readonly Point[], step: number): Point[] {
+  // PointerEvent 采样可能稀疏，按距离补点避免快速拖动时出现断线。
   const sampled: Point[] = []
   for (let index = 0; index < points.length; index += 1) {
     const current = points[index]
@@ -136,6 +138,7 @@ function mergeBrushMask(
     width: geometry.width,
     height: geometry.height,
   }).filter(annotation => {
+    // 只合并同标签、同图片尺寸并且像素真实相交的 Mask。
     if (
       annotation.labelId !== labelId ||
       annotation.geometry.type !== 'mask' ||
@@ -183,6 +186,7 @@ function mergeBrushMask(
     rle: encodeBinaryMaskRle(merged),
   })
   for (const duplicate of duplicates) {
+    // 保留第一条标注的 ID，其余重叠标注在合并后删除。
     removeAnnotation(annotator, duplicate.id)
   }
 }
@@ -209,26 +213,36 @@ export function createBrushTool(options: BrushToolOptions = {}): Tool {
 
       if (input.type === 'down') {
         const labelId = resolveLabelId(context.annotator, options.labelId)
+        const color = options.color ?? internal.labels.find(
+          label => label.id === labelId,
+        )?.color ?? '#ff4d4f'
         state = { pointerId: input.pointerId, points: [input.imagePoint] }
         context.setDraft({
           type: 'brush',
           points: state.points,
           size: brushSize,
+          color,
           labelId,
         })
         return
       }
 
       if (input.type === 'move') {
+        // hover 不属于笔迹；必须是同一 pointer 且左键仍按住。
         if (state.pointerId !== input.pointerId || (input.buttons & 1) === 0) {
           return
         }
         state = { pointerId: input.pointerId, points: [...state.points, input.imagePoint] }
+        const labelId = resolveLabelId(context.annotator, options.labelId)
+        const color = options.color ?? internal.labels.find(
+          label => label.id === labelId,
+        )?.color ?? '#ff4d4f'
         context.setDraft({
           type: 'brush',
           points: state.points,
           size: brushSize,
-          labelId: resolveLabelId(context.annotator, options.labelId),
+          color,
+          labelId,
         })
         return
       }

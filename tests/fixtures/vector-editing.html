@@ -60,6 +60,14 @@
         undo: () => undo(annotator),
         redo: () => redo(annotator),
         zoom: scale => zoomTo(annotator, scale),
+        zoomAtPoint: (scale, point) => {
+          const client = imageToClient(annotator, point)
+          const bounds = container.getBoundingClientRect()
+          zoomTo(annotator, scale, {
+            x: client.x - bounds.left,
+            y: client.y - bounds.top,
+          })
+        },
       }
       document.documentElement.dataset.ready = 'true'
     </script>

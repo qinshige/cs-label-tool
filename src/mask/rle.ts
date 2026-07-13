@@ -1,4 +1,7 @@
+import type { Bounds } from '../geometry/types.js'
+
 export function encodeBinaryMaskRle(mask: ArrayLike<number>): readonly number[] {
+  // RLE 固定从 0 段开始，之后按 0/1 交替记录连续长度。
   const runs: number[] = []
   let expected = 0
   let length = 0
@@ -40,6 +43,7 @@ export function decodeBinaryMaskRle(
   return mask
 }
 
+/** 判断两个二进制 Mask 是否至少共享一个前景像素。 */
 export function masksIntersect(
   first: ArrayLike<number>,
   second: ArrayLike<number>,
@@ -57,6 +61,7 @@ export function mergeBinaryMasks(
   first: ArrayLike<number>,
   second: ArrayLike<number>,
 ): Uint8Array {
+  // OR 用于合并涂抹区域。
   const length = Math.max(first.length, second.length)
   const merged = new Uint8Array(length)
   for (let index = 0; index < length; index += 1) {
@@ -71,6 +76,7 @@ export function subtractBinaryMask(
   source: ArrayLike<number>,
   eraser: ArrayLike<number>,
 ): Uint8Array {
+  // source AND NOT eraser，只擦除 Mask，不影响其他几何类型。
   const length = source.length
   const result = new Uint8Array(length)
   for (let index = 0; index < length; index += 1) {
@@ -107,6 +113,7 @@ export function splitBinaryMaskComponents(
       continue
     }
     const component = new Uint8Array(length)
+    // 使用预分配整型队列做 BFS，避免大区域中频繁创建临时数组。
     let head = 0
     let tail = 0
     queue[tail] = start
@@ -127,6 +134,7 @@ export function splitBinaryMaskComponents(
           if (offsetX === 0 && offsetY === 0) {
             continue
           }
+          // 采用 8 邻域，视觉上连续的斜线不会被错误拆开。
           const nextX = x + offsetX
           const nextY = y + offsetY
           if (
@@ -158,6 +166,7 @@ export function getBinaryMaskBounds(
   width: number,
   height: number,
 ): Bounds | null {
+  // 扫描真实前景像素，而不是直接返回整张图片范围。
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
@@ -185,6 +194,7 @@ export function translateBinaryMask(
   deltaX: number,
   deltaY: number,
 ): Uint8Array {
+  // Mask 像素只能落在整数网格，拖拽位移在提交时取整并裁剪到图像边界。
   const offsetX = Math.round(deltaX)
   const offsetY = Math.round(deltaY)
   const translated = new Uint8Array(width * height)
@@ -210,6 +220,7 @@ export function binaryMasksWithinDistance(
   height: number,
   distance: number,
 ): boolean {
+  // 在第一个 Mask 的每个前景像素周围搜索，用于拖拽后的近距离吸附合并。
   const radius = Math.max(0, Math.ceil(distance))
   const distanceSquared = distance * distance
   for (let y = 0; y < height; y += 1) {
@@ -239,4 +250,3 @@ export function binaryMasksWithinDistance(
   }
   return false
 }
-import type { Bounds } from '../geometry/types.js'

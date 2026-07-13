@@ -171,6 +171,7 @@ export function getRectResizeHandleAtPoint(
 }
 
 function annotationContains(annotation: Annotation, point: Point): boolean {
+  // 空间索引只负责粗筛包围盒，这里再按真实几何做一次精确命中。
   if (annotation.geometry.type === 'rect') {
     return pointInRect(point, annotation.geometry)
   }
@@ -181,6 +182,7 @@ function annotationContains(annotation: Annotation, point: Point): boolean {
     )
   }
   if (annotation.geometry.type === 'mask') {
+    // Mask 的 RLE 数据覆盖整张原图，命中判断必须读取对应像素，不能只看外接框。
     const x = Math.floor(point.x)
     const y = Math.floor(point.y)
     if (
@@ -214,6 +216,7 @@ function translateGeometry(
       points: geometry.points.map(([x, y]) => [x + delta.x, y + delta.y]),
     }
   }
+  // Mask 没有单独的 x/y，移动时需要解码、平移像素，再重新编码。
   const mask = decodeBinaryMaskRle(
     geometry.rle,
     geometry.width,
@@ -239,6 +242,8 @@ function updateAndMergeNearbyMasks(
   geometry: MaskGeometry,
   tolerance: number,
 ): void {
+  // 拖动结束后，同标签且距离足够近的 Mask 会并入当前标注。
+  // 当前标注保留原 id，便于外部业务继续引用；被吸收的标注随后删除。
   let merged = decodeBinaryMaskRle(
     geometry.rle,
     geometry.width,
@@ -339,6 +344,7 @@ function findHandleMode(
   point: Point,
   tolerance: number,
 ): DragMode | null {
+  // tolerance 使用图片坐标。调用方会除以缩放倍率，保证控制点在屏幕上始终好点中。
   const toleranceSquared = tolerance * tolerance
   if (annotation.geometry.type === 'polygon') {
     const index = annotation.geometry.points.findIndex(([x, y]) =>
@@ -411,6 +417,8 @@ export function getSelection(annotator: Annotator): readonly string[] {
 }
 
 export function createSelectTool(): Tool {
+  // 编辑过程只保存在工具内部状态和 interactionDraft 中，抬手后才写入标注数据。
+  // 这样取消手势时无需回滚，也不会为每个 pointermove 生成一条历史记录。
   let state: SelectState = { phase: 'idle' }
   let selectedVertex: { annotationId: string; index: number } | null = null
 
@@ -430,6 +438,7 @@ export function createSelectTool(): Tool {
       }
       if (input.type === 'down') {
         const internal = getInternalState(context.annotator)
+        // 8px 是屏幕命中半径；换算为图片坐标后，缩放不会造成控制点错位或难以操作。
         const tolerance = 8 / (internal.viewport?.scale ?? 1)
         const selected = internal.selectedIds[0] === undefined
           ? undefined
@@ -439,6 +448,7 @@ export function createSelectTool(): Tool {
           ? null
           : findHandleMode(selected, input.imagePoint, tolerance)
 
+        // 已选中标注的控制点优先级最高，避免它被上层重叠标注抢走。
         const bounds: Bounds = {
           x: input.imagePoint.x - tolerance,
           y: input.imagePoint.y - tolerance,
@@ -455,6 +465,7 @@ export function createSelectTool(): Tool {
         let cycleOnClick = false
         let cycleNextIndex = 0
         if (mode === null) {
+          // reverse 后先命中最上层；重复点击同一重叠区域时，从当前项继续向下轮选。
           const candidateIndex = selectedIndex >= 0 ? selectedIndex : 0
           annotation = candidates[candidateIndex]
           cycleOnClick = selectedIndex >= 0 && candidates.length > 1
@@ -498,6 +509,7 @@ export function createSelectTool(): Tool {
       const geometry = geometryForPoint(state, input.imagePoint)
       state = { ...state, currentGeometry: geometry, moved }
       if (input.type === 'move') {
+        // pointermove 只更新预览，真正的数据提交统一放在 pointerup。
         context.setDraft({
           type: 'vector',
           annotationId: state.annotation.id,
@@ -507,6 +519,7 @@ export function createSelectTool(): Tool {
         return
       }
       if (!state.moved && state.cycleOnClick && state.cycleIds.length > 1) {
+        // 没有超过拖动阈值，说明这是点击：切换到重叠区域中的下一条标注。
         const nextId = state.cycleIds[
           state.cycleNextIndex % state.cycleIds.length
         ]
@@ -520,6 +533,7 @@ export function createSelectTool(): Tool {
       const minimumImageSize = 1 / (
         getInternalState(context.annotator).viewport?.scale ?? 1
       )
+      // 最小尺寸同样以 1 个屏幕像素为准，防止缩放后生成退化矩形或重合顶点。
       const valid = geometry.type === 'rect'
         ? geometry.width >= minimumImageSize &&
           geometry.height >= minimumImageSize
@@ -537,6 +551,7 @@ export function createSelectTool(): Tool {
           : true
       if (valid && !sameGeometry(state.annotation.geometry, geometry)) {
         if (geometry.type === 'mask') {
+          // Mask 移动后可能靠近同标签区域，抬手时执行一次合并。
           updateAndMergeNearbyMasks(
             context.annotator,
             state.annotation,
@@ -564,6 +579,7 @@ export function createSelectTool(): Tool {
         event.preventDefault()
       }
       if (event.key === 'Backspace' && selectedVertex !== null) {
+        // Backspace 只删除当前选中的多边形顶点；至少保留三个点，并再次校验多边形。
         const annotation = internal.annotationsById.get(
           selectedVertex.annotationId,
         )

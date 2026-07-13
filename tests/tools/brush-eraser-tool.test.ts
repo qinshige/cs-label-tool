@@ -210,6 +210,7 @@ describe('brush and eraser tools', () => {
     expect(drafts.at(-1)).toMatchObject({
       type: 'brush',
       size: 18,
+      color: '#ff4d4f',
       labelId: 'person',
       points: [{ x: 8, y: 8 }, { x: 16, y: 8 }],
     })

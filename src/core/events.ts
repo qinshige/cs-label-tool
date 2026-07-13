@@ -52,7 +52,7 @@ function emitSubscriberError(annotator: Annotator, error: unknown): void {
     try {
       listener(event)
     } catch {
-      // Consumer error listeners are isolated and never recurse.
+      // 隔离业务侧错误监听器，避免错误处理再次递归触发自身。
     }
   }
 }

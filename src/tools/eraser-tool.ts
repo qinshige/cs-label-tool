@@ -81,6 +81,7 @@ function eraseMaskStroke(
     width: eraserGeometry.width,
     height: eraserGeometry.height,
   }).filter(annotation =>
+    // 橡皮擦明确只处理 Mask，矩形和多边形不会进入候选集合。
     annotation.geometry.type === 'mask' &&
     annotation.geometry.width === eraserGeometry.width &&
     annotation.geometry.height === eraserGeometry.height,
@@ -99,6 +100,7 @@ function eraseMaskStroke(
       continue
     }
     const nextMask = subtractBinaryMask(currentMask, eraserMask)
+    // 擦除可能把一块区域切断，提交前拆成多个独立连通块。
     const components = splitBinaryMaskComponents(
       nextMask,
       annotation.geometry.width,
@@ -106,6 +108,7 @@ function eraseMaskStroke(
     )
     const firstComponent = components[0]
     if (firstComponent !== undefined && hasMaskPixels(firstComponent)) {
+      // 第一块沿用原 ID，其他块新增为独立标注。
       updateAnnotation(annotator, annotation.id, {
         type: 'mask',
         width: annotation.geometry.width,
@@ -148,6 +151,7 @@ export function createEraserTool(options: EraserToolOptions = {}): Tool {
 
       if (input.type === 'down') {
         state = { pointerId: input.pointerId, points: [input.imagePoint] }
+        // draft 负责实时透明预览，持久数据仍等到 pointerup 再修改。
         context.setDraft({ type: 'eraser', points: state.points, size })
         return
       }

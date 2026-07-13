@@ -17,6 +17,7 @@ function loadImageElement(url: string, signal: AbortSignal): Promise<HTMLImageEl
     const image = new Image()
     image.crossOrigin = 'anonymous'
     const cleanup = () => {
+      // 加载完成、失败或取消后都解除监听，避免旧图片对象长期持有闭包。
       signal.removeEventListener('abort', abort)
       image.onload = null
       image.onerror = null
@@ -42,6 +43,7 @@ function loadImageElement(url: string, signal: AbortSignal): Promise<HTMLImageEl
 export function createStandardImageSource(
   input: StandardImageInput,
 ): ImageSource {
+  // ImageBitmap 由本模块复制并持有，dispose 时负责 close；外部传入对象不在这里销毁。
   let sourceInput: StandardImageInput | null = input
   let loadedImage: HTMLImageElement | null = null
   let ownedBitmap: ImageBitmap | null = null
@@ -89,6 +91,7 @@ export function createStandardImageSource(
         throw new Error('The image input is unavailable.')
       }
       if (typeof sourceInput !== 'string') {
+        // Blob/File 先转成临时 URL，资源销毁时必须配对 revokeObjectURL。
         objectUrl = URL.createObjectURL(sourceInput)
       }
       const image = await loadImageElement(

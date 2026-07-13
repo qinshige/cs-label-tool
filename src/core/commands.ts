@@ -45,6 +45,10 @@ function recordHistory(
   emitChange(annotator, kind)
 }
 
+/**
+ * 所有领域修改的统一入口：先执行 redo，再记录可撤销操作并发送 change 事件。
+ * UI 和工具不应直接修改 InternalState。
+ */
 export function commitDomainCommand(
   annotator: Annotator,
   kind: ChangeKind,
@@ -129,6 +133,7 @@ function getGeometryBounds(
     return geometry
   }
   if (geometry.type === 'mask') {
+    // Mask 数据与原图等大；更精确的像素边界由 mask 工具函数按需计算。
     return { x: 0, y: 0, width: geometry.width, height: geometry.height }
   }
   let minX = Number.POSITIVE_INFINITY
@@ -150,6 +155,7 @@ function insertAnnotation(
   index = state.annotations.length,
   order?: number,
 ): void {
+  // 主数组、ID Map 和空间索引必须作为一个整体更新。
   state.annotations.splice(index, 0, annotation)
   state.annotationsById.set(annotation.id, annotation)
   const bounds = getGeometryBounds(annotation.geometry)
@@ -161,6 +167,7 @@ function insertAnnotation(
 }
 
 function deleteAnnotation(state: InternalState, id: string): void {
+  // 删除正在编辑的标注前先取消手势，避免 interaction draft 引用失效对象。
   if (state.selectedIds.includes(id)) {
     state.toolController?.cancel()
     state.selectedIds = state.selectedIds.filter(selectedId => selectedId !== id)
@@ -287,6 +294,7 @@ export function updateAnnotation(
   const index = state.annotations.findIndex(annotation => annotation.id === id)
 
   const apply = (current: InternalState, annotation: Annotation) => {
+    // 更新几何后同步刷新空间索引，否则区域查询仍会命中旧位置。
     current.annotations[index] = annotation
     current.annotationsById.set(id, annotation)
     updateSpatialItem(
@@ -400,6 +408,7 @@ export function queryAnnotations(
   bounds: Bounds,
 ): Annotation[] {
   const state = getInternalState(annotator)
+  // 先通过网格索引取候选，再由上层按具体几何做精确命中。
   return querySpatialBounds(state.spatialIndex, bounds)
     .map(id => state.annotationsById.get(id))
     .filter((annotation): annotation is Annotation => annotation !== undefined)
