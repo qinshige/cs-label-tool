@@ -16,7 +16,7 @@
 
 1. 发布构建关闭 JavaScript source map。
 2. TypeScript 声明构建关闭 declaration map。
-3. 发布的 ESM 文件使用 esbuild 压缩。
+3. 发布的 ESM 文件使用 Vite 8 内置的 Oxc 压缩，不增加额外构建依赖。
 4. `package.json` 标记 `sideEffects: false`，让消费端构建工具安全移除未使用导出。
 5. 删除已确认无行为价值的重复调用和死代码，不删除现有公开 API。
 6. 版本升级为 `2.0.0`，发布到 npm 的 `latest` 标签。

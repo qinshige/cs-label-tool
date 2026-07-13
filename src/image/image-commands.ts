@@ -45,7 +45,6 @@ export async function setImageSource(
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
   state.renderer?.invalidate('interaction')
-  state.renderer?.invalidate('interaction')
   state.imageSource?.dispose()
   state.imageSource = null
   if (hadImage) {
