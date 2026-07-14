@@ -1,6 +1,6 @@
 {
   "name": "cs-label-tool",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Framework-free TypeScript library for AI-assisted image annotation.",
   "type": "module",
   "sideEffects": false,
@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://gitee.com/qinshige/cs-label-tool.git"
+    "url": "https://github.com/qinshige/cs-label-tool.git"
   },
   "license": "ISC",
   "devDependencies": {
