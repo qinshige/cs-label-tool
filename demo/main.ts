@@ -433,7 +433,7 @@ document.addEventListener('keydown', (e) => {
 })
 
 try {
-  await setImageSource(annotator, createStandardImageSource('../a.webp'))
+  await setImageSource(annotator, createStandardImageSource(new URL('../a.webp', import.meta.url).href))
   fitToScreen(annotator)
   toast('图像加载完成')
 } catch {
