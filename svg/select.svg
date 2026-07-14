@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg">
+        <g style="width=100%; height:100%;">
+            <rect width="100%" height="100%" stroke="red" stroke-width="4" fill="yellow" />
+            <circle cx="150" cy="100" r="80" fill="green" />
+            <text x="150" y="115" font-size="16" text-anchor="middle" fill="white">RUNOOB SVG TEST</text>
+            <div>
+                <select>
+                    <option value='volvo'>Volvo</option>
+                    <option value='saab'>Saab</option>
+                    <option value='opel'>Opel</option>
+                    <option value='audi'>Audi </option>
+        </select>
+	  </div>
+	</g>
+</svg>
+ 
+</body>
+</html>

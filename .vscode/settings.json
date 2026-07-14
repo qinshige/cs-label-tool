@@ -1,5 +1,9 @@
 {
     "svg.preview.background": "transparent",
     "liveServer.settings.port": 5501,
+<<<<<<< HEAD
+    "commentTranslate.multiLineMerge": true
+=======
     "commentTranslate.targetLanguage": "en"
+>>>>>>> master
 }
