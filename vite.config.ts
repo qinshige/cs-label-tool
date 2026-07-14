@@ -8,7 +8,8 @@ export default defineConfig({
       formats: ['es'],
       fileName: () => 'index.js',
     },
-    sourcemap: true,
+    minify: 'oxc',
+    sourcemap: false,
     emptyOutDir: true,
   },
 })

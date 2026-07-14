@@ -42,7 +42,7 @@ Expected: `size` 约为 94818，文件清单包含 `dist/index.js.map` 和多个
 
 ```ts
 build: {
-  minify: 'esbuild',
+  minify: 'oxc',
   sourcemap: false,
 }
 ```

@@ -1,4 +1,4 @@
-import type { Tool, ToolCategory, ToolRegistry } from './types.js'
+import type { Tool, ToolRegistry } from './types.js'
 import { createBrushTool } from './brush-tool.js'
 import { createEraserTool } from './eraser-tool.js'
 import { createPolygonTool } from './polygon-tool.js'

@@ -8,6 +8,7 @@ declare global {
     unmountTestAnnotator: () => void
     controlsDisabledBeforeImage: boolean
     getTestZoom: () => number
+    copiedSnapshotJson?: string
     demoTest: {
       addRect: (labelId: string, bounds: Bounds) => string
       hasImagePixels: () => boolean

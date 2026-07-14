@@ -14,6 +14,8 @@
 
 ## 环境与安装
 
+当前稳定版为 `2.0.0`，仅提供 ESM，没有运行时依赖。
+
 - Node.js 22.12+
 - Chrome、Edge、Firefox 最近两个大版本
 - Safari 17+

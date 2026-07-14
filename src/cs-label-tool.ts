@@ -18,7 +18,6 @@ import * as SelectTool from './tools/select-tool.js'
 import * as BrushTool from './tools/brush-tool.js'
 import * as EraserTool from './tools/eraser-tool.js'
 import * as Components from './components/define.js'
-import * as Element from './components/annotator-element.js'
 import type { Tool, ToolCategory, LabelDefinition, Annotator } from './index.js'
 
 export type {

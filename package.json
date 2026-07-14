@@ -1,8 +1,9 @@
 {
   "name": "cs-label-tool",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.2",
   "description": "Framework-free TypeScript library for AI-assisted image annotation.",
   "type": "module",
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -11,6 +12,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
   },
   "scripts": {
     "dev": "vite",
@@ -34,5 +40,20 @@
   },
   "engines": {
     "node": ">=22.12.0"
-  }
+  },
+  "keywords": [
+    "canvas",
+    "image-annotation",
+    "ai-annotation",
+    "computer-vision",
+    "object-detection",
+    "label-tool",
+    "annotation-tool",
+    "web-component",
+    "typescript",
+    "headless",
+    "bounding-box",
+    "polygon",
+    "mask"
+  ]
 }

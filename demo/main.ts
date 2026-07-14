@@ -6,8 +6,6 @@ import {
   canRedo,
   canUndo,
   clearSelection,
-  createBrushTool,
-  createEraserTool,
   createStandardImageSource,
   defineAnnotatorElements,
   fitToScreen,
@@ -26,7 +24,6 @@ import {
   setImageSource,
   subscribe,
   undo,
-  updateAnnotation,
   updateAnnotationLabel,
   updateLabel,
   useBrush,
@@ -65,6 +62,9 @@ const annotationListEl = document.getElementById('annotation-list')!
 const statsEl = document.getElementById('stats')!
 const btnUndo = document.getElementById('btn-undo')! as HTMLButtonElement
 const btnRedo = document.getElementById('btn-redo')! as HTMLButtonElement
+const snapshotDialog = document.getElementById('snapshot-dialog')! as HTMLDialogElement
+const snapshotJsonEl = document.getElementById('snapshot-json')!
+let displayedSnapshotJson = ''
 
 function updateStats(): void {
   const snapshot = getSnapshot(annotator)
@@ -308,6 +308,21 @@ function exportAnnotations(): void {
   toast('标注数据已导出')
 }
 
+function showSnapshotDialog(): void {
+  displayedSnapshotJson = JSON.stringify(getSnapshot(annotator), null, 2)
+  snapshotJsonEl.textContent = displayedSnapshotJson
+  snapshotDialog.showModal()
+}
+
+async function copySnapshotJson(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(displayedSnapshotJson)
+    toast('标注结果已复制')
+  } catch {
+    toast('复制失败，请手动选择 JSON')
+  }
+}
+
 function importAnnotations(): void {
   const input = document.createElement('input')
   input.type = 'file'
@@ -389,9 +404,13 @@ document.getElementById('btn-zoom-in')!.addEventListener('click', () => { zoomBy
 document.getElementById('btn-zoom-out')!.addEventListener('click', () => { zoomBy(annotator, 0.8) })
 document.getElementById('btn-fit')!.addEventListener('click', () => { fitToScreen(annotator); toast('适应屏幕') })
 document.getElementById('btn-export')!.addEventListener('click', exportAnnotations)
+document.getElementById('btn-get-result')!.addEventListener('click', showSnapshotDialog)
 document.getElementById('btn-import')!.addEventListener('click', importAnnotations)
 document.getElementById('btn-clear')!.addEventListener('click', clearAllAnnotations)
 document.getElementById('btn-select-image')!.addEventListener('click', selectImage)
+document.getElementById('btn-copy-snapshot')!.addEventListener('click', copySnapshotJson)
+document.getElementById('btn-close-snapshot')!.addEventListener('click', () => snapshotDialog.close())
+document.getElementById('btn-dismiss-snapshot')!.addEventListener('click', () => snapshotDialog.close())
 
 document.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return

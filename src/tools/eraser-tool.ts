@@ -5,7 +5,7 @@ import {
 } from '../core/commands.js'
 import { clearSelection, getSelection } from './select-tool.js'
 import { queryAnnotations } from '../core/commands.js'
-import type { Annotation, Annotator } from '../core/types.js'
+import type { Annotator } from '../core/types.js'
 import type { Point } from '../geometry/types.js'
 import {
   decodeBinaryMaskRle,
@@ -31,28 +31,6 @@ export interface EraserToolOptions {
 interface EraserToolState {
   readonly pointerId: number | null
   readonly points: readonly Point[]
-}
-
-function maskContainsPoint(annotation: Annotation, point: Point): boolean {
-  if (annotation.geometry.type !== 'mask') {
-    return false
-  }
-  const x = Math.floor(point.x)
-  const y = Math.floor(point.y)
-  if (
-    x < 0 ||
-    y < 0 ||
-    x >= annotation.geometry.width ||
-    y >= annotation.geometry.height
-  ) {
-    return false
-  }
-  const mask = decodeBinaryMaskRle(
-    annotation.geometry.rle,
-    annotation.geometry.width,
-    annotation.geometry.height,
-  )
-  return mask[y * annotation.geometry.width + x] === 1
 }
 
 function eraseMaskStroke(
