@@ -1,25 +1,24 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
-    "jsx": "preserve",
-    "moduleResolution": "node",
-    "experimentalDecorators": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "useDefineForClassFields": true,
-    "sourceMap": true,
-    "baseUrl": ".",
-    "allowJs": true,
-    "types": ["webpack-env", "mocha", "chai"],
-    "paths": {
-      "@/*": ["src/*"]
-    },
-    "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "include": ["src/*.ts", "src/**/*.ts", "test/**/*.ts", "test/**/*.d.ts"],
-  "exclude": ["node_modules", "tests/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "demo/**/*.ts",
+    "tests/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
 }

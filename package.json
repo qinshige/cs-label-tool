@@ -1,19 +1,59 @@
 {
   "name": "cs-label-tool",
-  "version": "1.0.0",
-  "description": "一个基于canvas绘制svg展示的绘制工具, 尚在开发中.",
-  "main": "index.js",
+  "version": "2.0.3",
+  "description": "Framework-free TypeScript library for AI-assisted image annotation.",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm test && npm run build"
   },
   "repository": {
     "type": "git",
-    "url": "https://gitee.com/qinshige/cs-label-tool.git"
+    "url": "https://github.com/qinshige/cs-label-tool.git"
   },
-  "author": "",
   "license": "ISC",
   "devDependencies": {
-    "tslint": "^6.1.3",
-    "typescript": "^4.7.4"
-  }
+    "@playwright/test": "1.61.1",
+    "typescript": "7.0.2",
+    "vite": "8.1.4",
+    "vitest": "4.1.10"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "keywords": [
+    "canvas",
+    "image-annotation",
+    "ai-annotation",
+    "computer-vision",
+    "object-detection",
+    "label-tool",
+    "annotation-tool",
+    "web-component",
+    "typescript",
+    "headless",
+    "bounding-box",
+    "polygon",
+    "mask"
+  ]
 }
