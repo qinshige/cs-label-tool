@@ -1,6 +1,13 @@
 .DS_Store
 node_modules
 /dist
+/docs
+/tests
+/demo-dist
+/.worktrees/
+/test-results/
+/playwright-report/
+
 
 
 # local env files

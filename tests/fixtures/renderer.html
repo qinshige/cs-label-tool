@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Renderer fixture</title>
+  </head>
+  <body style="margin: 0">
+    <div id="app" style="width: 800px; height: 600px"></div>
+    <script type="module">
+      import {
+        createAnnotator,
+        createStandardImageSource,
+        fitToScreen,
+        setImageSource,
+      } from '/src/index.ts'
+
+      const container = document.querySelector('#app')
+      const annotator = createAnnotator({ container })
+      const image = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="white"/></svg>',
+      )
+      await setImageSource(annotator, createStandardImageSource(image))
+      fitToScreen(annotator)
+      await new Promise(requestAnimationFrame)
+      document.documentElement.dataset.ready = 'true'
+    </script>
+  </body>
+</html>
