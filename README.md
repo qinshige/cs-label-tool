@@ -1,5 +1,7 @@
 # cs-label-tool
 
+在线 Demo：[https://qinshige.github.io/cs-label-tool/](https://qinshige.github.io/cs-label-tool/)
+
 一个用 Canvas 做图片标注的 TypeScript 库。没有运行时依赖，可以直接调用函数，也可以使用已经绑定好的 `editor` 实例。
 
 当前支持：
@@ -181,13 +183,13 @@ useEraser(annotator, { size: 18 })
 
 ### 工具参数
 
-| 工具 | 方法 | 参数 |
-| --- | --- | --- |
-| 选择 | `select()` | 无 |
-| 矩形 | `rect(options)` | `labelId?`, `minimumSize?` |
-| 多边形 | `polygon(options)` | `labelId?` |
-| 涂抹 | `brush(options)` | `labelId?`, `size?`, `color?`（预览颜色） |
-| 橡皮擦 | `eraser(options)` | `size?` |
+| 工具  | 方法                 | 参数                                  |
+| --- | ------------------ | ----------------------------------- |
+| 选择  | `select()`         | 无                                   |
+| 矩形  | `rect(options)`    | `labelId?`, `minimumSize?`          |
+| 多边形 | `polygon(options)` | `labelId?`                          |
+| 涂抹  | `brush(options)`   | `labelId?`, `size?`, `color?`（预览颜色） |
+| 橡皮擦 | `eraser(options)`  | `size?`                             |
 
 未传 `labelId` 时，矩形、多边形和涂抹使用当前激活标签。调用绘制工具前必须加载图片并激活一个标签。
 
@@ -629,12 +631,12 @@ editor.tools.activate(pointMarker)
 
 ## 三种入口的区别
 
-| 入口 | 返回值 | 适用场景 |
-| --- | --- | --- |
-| `mount('#app')` | `AnnotatorInstance` | 推荐，带 Web Component UI 和绑定方法 |
-| `create({ container })` | `AnnotatorInstance` | 自建 UI，使用绑定方法 |
-| `mountAnnotator/createAnnotator` | 原始 `Annotator` | 函数式 API、框架适配 |
-| 默认导出 `csLabelTool` | 函数集合 | 需要单一命名空间时 |
+| 入口                               | 返回值                 | 适用场景                        |
+| -------------------------------- | ------------------- | --------------------------- |
+| `mount('#app')`                  | `AnnotatorInstance` | 推荐，带 Web Component UI 和绑定方法 |
+| `create({ container })`          | `AnnotatorInstance` | 自建 UI，使用绑定方法                |
+| `mountAnnotator/createAnnotator` | 原始 `Annotator`      | 函数式 API、框架适配                |
+| 默认导出 `csLabelTool`               | 函数集合                | 需要单一命名空间时                   |
 
 默认导出示例：
 
@@ -686,105 +688,105 @@ unmountAnnotator('#app')
 
 ### 创建和销毁
 
-| API | 用途 |
-| --- | --- |
-| `mount` | 创建带默认 Web Component 界面的 `AnnotatorInstance` |
-| `create` | 在指定容器创建 `AnnotatorInstance`，界面由项目自己做 |
-| `mountAnnotator` | 创建带默认界面的原始 `Annotator` |
-| `createAnnotator` | 创建原始 `Annotator` |
-| `destroyAnnotator` | 销毁原始 `Annotator` |
-| `getSnapshot` | 获取只读快照 |
-| `defineAnnotatorElements` | 注册 `<cs-annotator>` |
-| `unmountAnnotator` | 卸载默认组件 |
+| API                       | 用途                                          |
+| ------------------------- | ------------------------------------------- |
+| `mount`                   | 创建带默认 Web Component 界面的 `AnnotatorInstance` |
+| `create`                  | 在指定容器创建 `AnnotatorInstance`，界面由项目自己做        |
+| `mountAnnotator`          | 创建带默认界面的原始 `Annotator`                      |
+| `createAnnotator`         | 创建原始 `Annotator`                            |
+| `destroyAnnotator`        | 销毁原始 `Annotator`                            |
+| `getSnapshot`             | 获取只读快照                                      |
+| `defineAnnotatorElements` | 注册 `<cs-annotator>`                         |
+| `unmountAnnotator`        | 卸载默认组件                                      |
 
 ### 标注和标签
 
-| API | 用途 |
-| --- | --- |
-| `addRect` / `addPolygon` / `addMask` | 直接添加标注 |
-| `updateAnnotation` | 修改标注几何 |
-| `updateAnnotationLabel` | 修改单条标注的标签 |
-| `removeAnnotation` | 删除单条标注 |
-| `queryAnnotations` | 查询指定图片区域里的标注 |
-| `undo` / `redo` | 撤销和重做 |
-| `canUndo` / `canRedo` | 判断当前能否撤销或重做 |
-| `addLabel` / `updateLabel` | 添加或修改标签 |
-| `setActiveLabel` / `getActiveLabel` | 设置或读取当前绘制标签 |
+| API                                  | 用途           |
+| ------------------------------------ | ------------ |
+| `addRect` / `addPolygon` / `addMask` | 直接添加标注       |
+| `updateAnnotation`                   | 修改标注几何       |
+| `updateAnnotationLabel`              | 修改单条标注的标签    |
+| `removeAnnotation`                   | 删除单条标注       |
+| `queryAnnotations`                   | 查询指定图片区域里的标注 |
+| `undo` / `redo`                      | 撤销和重做        |
+| `canUndo` / `canRedo`                | 判断当前能否撤销或重做  |
+| `addLabel` / `updateLabel`           | 添加或修改标签      |
+| `setActiveLabel` / `getActiveLabel`  | 设置或读取当前绘制标签  |
 
 ### 内置工具和选择
 
-| API | 用途 |
-| --- | --- |
-| `createToolApi` | 创建绑定到某个 annotator 的工具对象 |
-| `useSelect` / `useRect` / `usePolygon` | 启用选择、矩形、多边形工具 |
-| `useBrush` / `useEraser` | 启用涂抹、橡皮擦工具 |
-| `getActiveToolId` | 读取当前工具 ID |
-| `cancelActiveGesture` | 取消当前未完成操作 |
-| `selectAnnotation` / `clearSelection` / `getSelection` | 管理选择状态 |
-| `updateSelectedAnnotationsLabel` | 修改选中标注的标签 |
-| `deleteSelectedAnnotations` | 删除选中标注 |
+| API                                                    | 用途                      |
+| ------------------------------------------------------ | ----------------------- |
+| `createToolApi`                                        | 创建绑定到某个 annotator 的工具对象 |
+| `useSelect` / `useRect` / `usePolygon`                 | 启用选择、矩形、多边形工具           |
+| `useBrush` / `useEraser`                               | 启用涂抹、橡皮擦工具              |
+| `getActiveToolId`                                      | 读取当前工具 ID               |
+| `cancelActiveGesture`                                  | 取消当前未完成操作               |
+| `selectAnnotation` / `clearSelection` / `getSelection` | 管理选择状态                  |
+| `updateSelectedAnnotationsLabel`                       | 修改选中标注的标签               |
+| `deleteSelectedAnnotations`                            | 删除选中标注                  |
 
 ### 工具注册
 
-| API | 用途 |
-| --- | --- |
-| `activateTool` / `activateToolById` | 激活工具对象或指定 ID 的工具 |
-| `registerTool` / `unregisterTool` | 注册和移除自定义工具 |
-| `getTool` / `listTools` / `listToolsByCategory` | 查询工具 |
-| `getRegisteredTools` / `getRegisteredToolsByCategory` | 读取底层注册表中的工具 |
-| `createToolRegistry` / `createDefaultToolRegistry` | 创建空注册表或默认注册表 |
+| API                                                   | 用途               |
+| ----------------------------------------------------- | ---------------- |
+| `activateTool` / `activateToolById`                   | 激活工具对象或指定 ID 的工具 |
+| `registerTool` / `unregisterTool`                     | 注册和移除自定义工具       |
+| `getTool` / `listTools` / `listToolsByCategory`       | 查询工具             |
+| `getRegisteredTools` / `getRegisteredToolsByCategory` | 读取底层注册表中的工具      |
+| `createToolRegistry` / `createDefaultToolRegistry`    | 创建空注册表或默认注册表     |
 
 ### 图片和视图
 
-| API | 用途 |
-| --- | --- |
-| `createStandardImageSource` | 从 URL、Blob 或 ImageBitmap 创建图片源 |
-| `setImageSource` | 加载图片 |
-| `hasImage` | 判断图片是否加载完成 |
-| `fitToScreen` | 让整张图片进入画布 |
-| `zoomTo` / `zoomBy` / `getZoom` | 设置、调整和读取缩放比例 |
-| `panBy` | 平移画布 |
-| `resizeViewport` | 容器尺寸变化后更新画布 |
-| `imageToClient` / `clientToImage` | 原图坐标与浏览器坐标互转 |
+| API                               | 用途                             |
+| --------------------------------- | ------------------------------ |
+| `createStandardImageSource`       | 从 URL、Blob 或 ImageBitmap 创建图片源 |
+| `setImageSource`                  | 加载图片                           |
+| `hasImage`                        | 判断图片是否加载完成                     |
+| `fitToScreen`                     | 让整张图片进入画布                      |
+| `zoomTo` / `zoomBy` / `getZoom`   | 设置、调整和读取缩放比例                   |
+| `panBy`                           | 平移画布                           |
+| `resizeViewport`                  | 容器尺寸变化后更新画布                    |
+| `imageToClient` / `clientToImage` | 原图坐标与浏览器坐标互转                   |
 
 ### 几何和 Mask
 
-| API | 用途 |
-| --- | --- |
-| `normalizeRect` / `pointInRect` | 矩形计算和命中判断 |
-| `pointInPolygon` / `validatePolygon` | 多边形命中判断和有效性检查 |
-| `moveRect` / `resizeRect` | 计算移动或缩放后的矩形 |
-| `movePolygonVertex` / `removePolygonVertex` | 移动或删除多边形顶点 |
-| `createBrushMaskGeometry` | 把笔迹点转成 MaskGeometry |
-| `encodeBinaryMaskRle` / `decodeBinaryMaskRle` | 二进制 mask 与 RLE 互转 |
-| `getBinaryMaskBounds` | 计算 mask 的实际像素边界 |
-| `translateBinaryMask` | 平移 mask 像素 |
-| `splitBinaryMaskComponents` | 把不相连的区域拆成多个 mask |
-| `binaryMasksWithinDistance` | 判断两块 mask 是否足够接近 |
+| API                                           | 用途                  |
+| --------------------------------------------- | ------------------- |
+| `normalizeRect` / `pointInRect`               | 矩形计算和命中判断           |
+| `pointInPolygon` / `validatePolygon`          | 多边形命中判断和有效性检查       |
+| `moveRect` / `resizeRect`                     | 计算移动或缩放后的矩形         |
+| `movePolygonVertex` / `removePolygonVertex`   | 移动或删除多边形顶点          |
+| `createBrushMaskGeometry`                     | 把笔迹点转成 MaskGeometry |
+| `encodeBinaryMaskRle` / `decodeBinaryMaskRle` | 二进制 mask 与 RLE 互转   |
+| `getBinaryMaskBounds`                         | 计算 mask 的实际像素边界     |
+| `translateBinaryMask`                         | 平移 mask 像素          |
+| `splitBinaryMaskComponents`                   | 把不相连的区域拆成多个 mask    |
+| `binaryMasksWithinDistance`                   | 判断两块 mask 是否足够接近    |
 
 ### 底层视口、空间索引和工具状态机
 
 这些 API 主要给自定义渲染器、框架适配或自定义工具使用。普通业务通常用不到。
 
-| API | 用途 |
-| --- | --- |
-| `createViewport` / `fitViewport` | 创建和适配 viewport |
-| `imageToScreen` / `screenToImage` | 原图坐标与 viewport 坐标互转 |
-| `zoomAt` / `panViewport` | 计算缩放或平移后的 viewport |
-| `createGridIndex` | 创建空间索引 |
-| `insertSpatialItem` / `updateSpatialItem` | 添加或更新索引项 |
-| `removeSpatialItem` / `querySpatialBounds` | 删除或查询索引项 |
-| `createSelectTool` / `createRectTool` / `createPolygonTool` | 创建底层交互工具 |
-| `createBrushTool` / `createEraserTool` | 创建底层 mask 工具 |
-| `createRectToolState` / `reduceRectTool` | 单独使用矩形状态机 |
-| `createPolygonToolState` / `reducePolygonTool` | 单独使用多边形状态机 |
+| API                                                         | 用途                  |
+| ----------------------------------------------------------- | ------------------- |
+| `createViewport` / `fitViewport`                            | 创建和适配 viewport      |
+| `imageToScreen` / `screenToImage`                           | 原图坐标与 viewport 坐标互转 |
+| `zoomAt` / `panViewport`                                    | 计算缩放或平移后的 viewport  |
+| `createGridIndex`                                           | 创建空间索引              |
+| `insertSpatialItem` / `updateSpatialItem`                   | 添加或更新索引项            |
+| `removeSpatialItem` / `querySpatialBounds`                  | 删除或查询索引项            |
+| `createSelectTool` / `createRectTool` / `createPolygonTool` | 创建底层交互工具            |
+| `createBrushTool` / `createEraserTool`                      | 创建底层 mask 工具        |
+| `createRectToolState` / `reduceRectTool`                    | 单独使用矩形状态机           |
+| `createPolygonToolState` / `reducePolygonTool`              | 单独使用多边形状态机          |
 
 ### 事件
 
-| API | 用途 |
-| --- | --- |
+| API                                        | 用途                 |
+| ------------------------------------------ | ------------------ |
 | `subscribe(annotator, 'change', listener)` | 监听标注、标签、图片、选择和历史变化 |
-| `subscribe(annotator, 'error', listener)` | 监听订阅回调抛出的错误 |
+| `subscribe(annotator, 'error', listener)`  | 监听订阅回调抛出的错误        |
 
 公共类型包括 `Annotator`、`AnnotatorInstance`、`Annotation`、`RectGeometry`、`PolygonGeometry`、`MaskGeometry`、`LabelDefinition`、`Tool`、`AnnotationToolApi`、`ImageSource`、`ViewportState`、`Point` 和 `Bounds`。
 
