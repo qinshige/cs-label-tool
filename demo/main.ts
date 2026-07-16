@@ -607,9 +607,7 @@ document.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase()
   if (mod && key === 'z') { e.preventDefault(); undo(annotator) && toast('撤销'); return }
   if (mod && key === 'y') { e.preventDefault(); redo(annotator) && toast('重做'); return }
-  if (mod && key === 'c') { e.preventDefault(); (window as any)._copySelected(); return }
-  if (mod && key === 'v') { e.preventDefault(); (window as any)._pasteSelected(); return }
-  if (mod && key === 'd') { e.preventDefault(); (window as any)._duplicateSelected(); return }
+  // Ctrl+C/V/D 由选择工具内部 handleKey 处理，此处不再重复绑定
   switch (key) {
     case '=': case '+': zoomBy(annotator, 1.25); break
     case '-': zoomBy(annotator, 0.8); break
