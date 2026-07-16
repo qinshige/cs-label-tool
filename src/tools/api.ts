@@ -1,6 +1,22 @@
-import { removeAnnotation, updateAnnotationLabel } from '../core/commands.js'
 import { getInternalState } from '../core/annotator.js'
 import type { Annotator } from '../core/types.js'
+import {
+  bringForward,
+  bringToFront,
+  groupAnnotations,
+  removeAnnotations,
+  sendBackward,
+  sendToBack,
+  setAnnotationsHidden,
+  setAnnotationsLocked,
+  ungroupAnnotations,
+  updateAnnotationsLabel,
+} from '../core/arrangement-commands.js'
+import {
+  copyAnnotations,
+  duplicateAnnotations,
+  pasteAnnotations,
+} from '../core/clipboard.js'
 import { useBrush, type BrushToolOptions } from './brush-tool.js'
 import {
   activateTool,
@@ -8,7 +24,12 @@ import {
   cancelActiveGesture,
 } from './controller.js'
 import { useEraser, type EraserToolOptions } from './eraser-tool.js'
+import { useEllipse, type EllipseToolOptions } from './ellipse-tool.js'
+import { useFreehand, type FreehandToolOptions } from './freehand-tool.js'
+import { usePoint, type PointToolOptions } from './point-tool.js'
+import { useLasso } from './lasso-tool.js'
 import { usePolygon, type PolygonToolOptions } from './polygon-tool.js'
+import { usePolyline, type PolylineToolOptions } from './polyline-tool.js'
 import { useRect, type RectToolOptions } from './rect-tool.js'
 import {
   clearSelection,
@@ -20,7 +41,12 @@ import type { Tool, ToolCategory } from './types.js'
 
 export interface AnnotationToolApi {
   readonly select: () => void
+  readonly lasso: () => void
+  readonly freehand: (options?: Partial<FreehandToolOptions>) => void
+  readonly point: (options?: Partial<PointToolOptions>) => void
   readonly rect: (options?: Partial<RectToolOptions>) => void
+  readonly ellipse: (options?: Partial<EllipseToolOptions>) => void
+  readonly polyline: (options?: Partial<PolylineToolOptions>) => void
   readonly polygon: (options?: Partial<PolygonToolOptions>) => void
   readonly brush: (options?: Partial<BrushToolOptions>) => void
   readonly eraser: (options?: Partial<EraserToolOptions>) => void
@@ -38,6 +64,17 @@ export interface AnnotationToolApi {
   readonly selection: () => readonly string[]
   readonly deleteSelection: () => number
   readonly setSelectionLabel: (labelId: string) => number
+  readonly groupSelection: () => string | null
+  readonly ungroupSelection: () => number
+  readonly lockSelection: (locked?: boolean) => number
+  readonly hideSelection: (hidden?: boolean) => number
+  readonly bringSelectionForward: () => number
+  readonly sendSelectionBackward: () => number
+  readonly bringSelectionToFront: () => number
+  readonly sendSelectionToBack: () => number
+  readonly copySelection: () => number
+  readonly paste: () => readonly string[]
+  readonly duplicateSelection: () => readonly string[]
 }
 
 export function getActiveToolId(annotator: Annotator): string | null {
@@ -48,11 +85,7 @@ export function deleteSelectedAnnotations(annotator: Annotator): number {
   // 复制选中列表，避免删除标注时 selection:update 影响当前遍历。
   const selectedIds = [...getSelection(annotator)]
   let removed = 0
-  for (const id of selectedIds) {
-    if (removeAnnotation(annotator, id)) {
-      removed += 1
-    }
-  }
+  removed = removeAnnotations(annotator, selectedIds)
   clearSelection(annotator)
   return removed
 }
@@ -62,10 +95,7 @@ export function updateSelectedAnnotationsLabel(
   labelId: string,
 ): number {
   const selectedIds = [...getSelection(annotator)]
-  for (const id of selectedIds) {
-    updateAnnotationLabel(annotator, id, labelId)
-  }
-  return selectedIds.length
+  return updateAnnotationsLabel(annotator, selectedIds, labelId)
 }
 
 export function createToolApi(annotator: Annotator): AnnotationToolApi {
@@ -74,8 +104,23 @@ export function createToolApi(annotator: Annotator): AnnotationToolApi {
     select() {
       useSelect(annotator)
     },
+    lasso() {
+      useLasso(annotator)
+    },
+    freehand(options = {}) {
+      useFreehand(annotator, options)
+    },
+    point(options = {}) {
+      usePoint(annotator, options)
+    },
     rect(options = {}) {
       useRect(annotator, options)
+    },
+    ellipse(options = {}) {
+      useEllipse(annotator, options)
+    },
+    polyline(options = {}) {
+      usePolyline(annotator, options)
     },
     polygon(options = {}) {
       usePolygon(annotator, options)
@@ -127,6 +172,39 @@ export function createToolApi(annotator: Annotator): AnnotationToolApi {
     },
     setSelectionLabel(labelId: string) {
       return updateSelectedAnnotationsLabel(annotator, labelId)
+    },
+    groupSelection() {
+      return groupAnnotations(annotator, getSelection(annotator))
+    },
+    ungroupSelection() {
+      return ungroupAnnotations(annotator, getSelection(annotator))
+    },
+    lockSelection(locked = true) {
+      return setAnnotationsLocked(annotator, getSelection(annotator), locked)
+    },
+    hideSelection(hidden = true) {
+      return setAnnotationsHidden(annotator, getSelection(annotator), hidden)
+    },
+    bringSelectionForward() {
+      return bringForward(annotator, getSelection(annotator))
+    },
+    sendSelectionBackward() {
+      return sendBackward(annotator, getSelection(annotator))
+    },
+    bringSelectionToFront() {
+      return bringToFront(annotator, getSelection(annotator))
+    },
+    sendSelectionToBack() {
+      return sendToBack(annotator, getSelection(annotator))
+    },
+    copySelection() {
+      return copyAnnotations(annotator, getSelection(annotator))
+    },
+    paste() {
+      return pasteAnnotations(annotator)
+    },
+    duplicateSelection() {
+      return duplicateAnnotations(annotator, getSelection(annotator))
     },
   })
 }

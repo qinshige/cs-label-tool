@@ -42,6 +42,7 @@ export async function setImageSource(
   state.viewport = null
   state.toolController?.cancel()
   state.interactionDraft = null
+  state.selectionOutline = null
   state.renderer?.invalidate('image')
   state.renderer?.invalidate('annotations')
   state.renderer?.invalidate('interaction')

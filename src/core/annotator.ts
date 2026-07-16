@@ -46,6 +46,7 @@ export function destroyAnnotator(annotator: Annotator): void {
   state.toolController = null
   state.activeToolId = null
   state.interactionDraft = null
+  state.selectionOutline = null
   state.selectedIds = []
   state.listeners.change.clear()
   state.listeners.error.clear()
@@ -61,5 +62,9 @@ export function getSnapshot(annotator: Annotator): AnnotationSnapshot {
     labels: Object.freeze(
       state.labels.map(label => Object.freeze({ ...label })),
     ),
+    classificationOptions: Object.freeze(
+      state.classificationOptions.map(option => Object.freeze({ ...option })),
+    ),
+    classificationId: state.classificationId,
   })
 }

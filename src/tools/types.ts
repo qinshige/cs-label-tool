@@ -1,8 +1,6 @@
 import type {
+  AnnotationGeometry,
   Annotator,
-  MaskGeometry,
-  PolygonGeometry,
-  RectGeometry,
 } from '../core/types.js'
 import type { Bounds, Point } from '../geometry/types.js'
 
@@ -15,7 +13,34 @@ export type NormalizedPointerInput =
       readonly buttons: number
       readonly pressure: number
       readonly detail: number
+      readonly shiftKey?: boolean
+      readonly altKey?: boolean
+      readonly ctrlKey?: boolean
+      readonly metaKey?: boolean
     }
+
+export interface PointInteractionDraft {
+  readonly type: 'point'
+  readonly point: Point
+  readonly labelId: string
+}
+
+export interface PolylineInteractionDraft {
+  readonly type: 'polyline'
+  readonly points: readonly Point[]
+  readonly labelId: string
+}
+
+export interface EllipseInteractionDraft {
+  readonly type: 'ellipse'
+  readonly geometry: {
+    readonly cx: number
+    readonly cy: number
+    readonly radiusX: number
+    readonly radiusY: number
+  }
+  readonly labelId: string
+}
 
 export interface RectInteractionDraft {
   readonly type: 'rect'
@@ -46,15 +71,25 @@ export interface EraserInteractionDraft {
 export interface VectorInteractionDraft {
   readonly type: 'vector'
   readonly annotationId: string
-  readonly geometry: RectGeometry | PolygonGeometry | MaskGeometry
+  readonly geometry: AnnotationGeometry
   readonly labelId: string
+}
+
+export interface SelectionInteractionDraft {
+  readonly type: 'selection'
+  readonly mode: 'marquee' | 'lasso'
+  readonly points: readonly Point[]
 }
 
 export type InteractionDraft =
   | BrushInteractionDraft
+  | EllipseInteractionDraft
   | EraserInteractionDraft
+  | PointInteractionDraft
   | PolygonInteractionDraft
+  | PolylineInteractionDraft
   | RectInteractionDraft
+  | SelectionInteractionDraft
   | VectorInteractionDraft
 
 export interface ToolContext {

@@ -2,13 +2,19 @@ import type {
   Annotation,
   AnnotatorOptions,
   LabelDefinition,
+  ClassificationOption,
 } from './types.js'
 import type { EventListeners } from './events.js'
 import { createGridIndex, type GridIndex } from '../spatial/grid-index.js'
 import type { ImageSource, LoadedImage } from '../image/types.js'
 import type { CanvasRenderer } from '../render/canvas-renderer.js'
 import type { ViewportState } from '../viewport/viewport.js'
-import type { ToolController, InteractionDraft, ToolRegistry } from '../tools/types.js'
+import type {
+  ToolController,
+  InteractionDraft,
+  SelectionInteractionDraft,
+  ToolRegistry,
+} from '../tools/types.js'
 import { createDefaultToolRegistry } from '../tools/registry.js'
 
 export interface HistoryEntry {
@@ -29,6 +35,8 @@ export interface InternalState {
   annotations: Annotation[]
   labels: LabelDefinition[]
   activeLabelId: string | null
+  classificationOptions: ClassificationOption[]
+  classificationId: string | null
   spatialIndex: GridIndex
   annotationsById: Map<string, Annotation>
   undoStack: HistoryEntry[]
@@ -42,6 +50,7 @@ export interface InternalState {
   toolController: ToolController | null
   activeToolId: string | null
   interactionDraft: InteractionDraft | null
+  selectionOutline: SelectionInteractionDraft | null
   selectedIds: string[]
   readonly toolRegistry: ToolRegistry
 }
@@ -55,6 +64,8 @@ export function createInternalState(options: AnnotatorOptions): InternalState {
     annotations: [],
     labels: [],
     activeLabelId: null,
+    classificationOptions: [],
+    classificationId: null,
     spatialIndex: createGridIndex(512),
     annotationsById: new Map(),
     undoStack: [],
@@ -71,6 +82,7 @@ export function createInternalState(options: AnnotatorOptions): InternalState {
     toolController: null,
     activeToolId: null,
     interactionDraft: null,
+    selectionOutline: null,
     selectedIds: [],
     toolRegistry: createDefaultToolRegistry(),
   }

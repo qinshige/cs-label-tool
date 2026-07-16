@@ -1,5 +1,11 @@
 import type { Bounds, Point } from '../geometry/types.js'
+import {
+  getRotatedRectBounds,
+  normalizeRotation,
+} from '../geometry/rect.js'
 import { validatePolygon } from '../geometry/polygon.js'
+import { getEllipseBounds } from '../geometry/ellipse.js'
+import { getPolylineBounds } from '../geometry/polyline.js'
 import {
   insertSpatialItem,
   querySpatialBounds,
@@ -15,9 +21,13 @@ import { AnnotatorError } from './types.js'
 import type {
   Annotation,
   AnnotationBase,
+  AnnotationGeometry,
   Annotator,
+  EllipseGeometry,
   MaskGeometry,
+  PointGeometry,
   PolygonGeometry,
+  PolylineGeometry,
   RectGeometry,
 } from './types.js'
 
@@ -28,6 +38,19 @@ export interface AddRectInput extends Omit<RectGeometry, 'type'> {
 export interface AddPolygonInput {
   readonly labelId: string
   readonly points: readonly Point[]
+}
+
+export interface AddPointInput extends Omit<PointGeometry, 'type'> {
+  readonly labelId: string
+}
+
+export interface AddPolylineInput {
+  readonly labelId: string
+  readonly points: readonly Point[]
+}
+
+export interface AddEllipseInput extends Omit<EllipseGeometry, 'type'> {
+  readonly labelId: string
 }
 
 function recordHistory(
@@ -87,18 +110,25 @@ function validateRect(geometry: RectGeometry): void {
       geometry.y,
       geometry.width,
       geometry.height,
+      geometry.rotation ?? 0,
     ].every(Number.isFinite) ||
     geometry.width <= 0 ||
     geometry.height <= 0
   ) {
     throw new AnnotatorError(
       'INVALID_GEOMETRY',
-      'Rectangle coordinates must be finite and dimensions must be positive.',
+      'Rectangle coordinates and rotation must be finite, and dimensions must be positive.',
     )
   }
 }
 
-function validateGeometry(geometry: RectGeometry | PolygonGeometry | MaskGeometry): void {
+function validateFinite(values: readonly number[], message: string): void {
+  if (!values.every(Number.isFinite)) {
+    throw new AnnotatorError('INVALID_GEOMETRY', message)
+  }
+}
+
+function validateGeometry(geometry: AnnotationGeometry): void {
   if (geometry.type === 'rect') {
     validateRect(geometry)
     return
@@ -115,6 +145,43 @@ function validateGeometry(geometry: RectGeometry | PolygonGeometry | MaskGeometr
     }
     return
   }
+  if (geometry.type === 'point') {
+    validateFinite([geometry.x, geometry.y], 'Point coordinates must be finite.')
+    return
+  }
+  if (geometry.type === 'polyline') {
+    if (geometry.points.length < 2) {
+      throw new AnnotatorError(
+        'INVALID_GEOMETRY',
+        'A polyline must contain at least two points.',
+      )
+    }
+    validateFinite(
+      geometry.points.flatMap(([x, y]) => [x, y]),
+      'Polyline coordinates must be finite.',
+    )
+    const unique = new Set(geometry.points.map(([x, y]) => `${x}:${y}`))
+    if (unique.size < 2) {
+      throw new AnnotatorError(
+        'INVALID_GEOMETRY',
+        'A polyline must contain at least two different points.',
+      )
+    }
+    return
+  }
+  if (geometry.type === 'ellipse') {
+    validateFinite(
+      [geometry.cx, geometry.cy, geometry.radiusX, geometry.radiusY, geometry.rotation ?? 0],
+      'Ellipse coordinates, radii, and rotation must be finite.',
+    )
+    if (geometry.radiusX <= 0 || geometry.radiusY <= 0) {
+      throw new AnnotatorError(
+        'INVALID_GEOMETRY',
+        'Ellipse radii must be positive.',
+      )
+    }
+    return
+  }
   if (geometry.type === 'mask') {
     if (geometry.width <= 0 || geometry.height <= 0) {
       throw new AnnotatorError(
@@ -126,15 +193,24 @@ function validateGeometry(geometry: RectGeometry | PolygonGeometry | MaskGeometr
   }
 }
 
-function getGeometryBounds(
-  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
+export function getGeometryBounds(
+  geometry: AnnotationGeometry,
 ): Bounds {
   if (geometry.type === 'rect') {
-    return geometry
+    return getRotatedRectBounds(geometry)
   }
   if (geometry.type === 'mask') {
     // Mask 数据与原图等大；更精确的像素边界由 mask 工具函数按需计算。
     return { x: 0, y: 0, width: geometry.width, height: geometry.height }
+  }
+  if (geometry.type === 'point') {
+    return { x: geometry.x, y: geometry.y, width: 0, height: 0 }
+  }
+  if (geometry.type === 'polyline') {
+    return getPolylineBounds(geometry)
+  }
+  if (geometry.type === 'ellipse') {
+    return getEllipseBounds(geometry)
   }
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
@@ -190,6 +266,9 @@ export function addRect(annotator: Annotator, input: AddRectInput): string {
     y: input.y,
     width: input.width,
     height: input.height,
+    ...(input.rotation === undefined
+      ? {}
+      : { rotation: normalizeRotation(input.rotation) }),
   }
   validateRect(geometry)
   const annotation = cloneAnnotation({
@@ -224,6 +303,81 @@ export function addPolygon(
   })
   const index = state.annotations.length
 
+  commitDomainCommand(
+    annotator,
+    'annotation:add',
+    current => insertAnnotation(current, annotation, index),
+    current => deleteAnnotation(current, annotation.id),
+  )
+  return annotation.id
+}
+
+export function addPoint(annotator: Annotator, input: AddPointInput): string {
+  const state = getInternalState(annotator)
+  requireLabel(state, input.labelId)
+  const geometry: PointGeometry = { type: 'point', x: input.x, y: input.y }
+  validateGeometry(geometry)
+  const annotation = cloneAnnotation({
+    ...createAnnotationBase(input.labelId),
+    geometry,
+  })
+  const index = state.annotations.length
+  commitDomainCommand(
+    annotator,
+    'annotation:add',
+    current => insertAnnotation(current, annotation, index),
+    current => deleteAnnotation(current, annotation.id),
+  )
+  return annotation.id
+}
+
+export function addPolyline(
+  annotator: Annotator,
+  input: AddPolylineInput,
+): string {
+  const state = getInternalState(annotator)
+  requireLabel(state, input.labelId)
+  const geometry: PolylineGeometry = {
+    type: 'polyline',
+    points: input.points.map(point => [point.x, point.y] as const),
+  }
+  validateGeometry(geometry)
+  const annotation = cloneAnnotation({
+    ...createAnnotationBase(input.labelId),
+    geometry,
+  })
+  const index = state.annotations.length
+  commitDomainCommand(
+    annotator,
+    'annotation:add',
+    current => insertAnnotation(current, annotation, index),
+    current => deleteAnnotation(current, annotation.id),
+  )
+  return annotation.id
+}
+
+export function addEllipse(
+  annotator: Annotator,
+  input: AddEllipseInput,
+): string {
+  const state = getInternalState(annotator)
+  requireLabel(state, input.labelId)
+  const geometry: EllipseGeometry = {
+    type: 'ellipse',
+    cx: input.cx,
+    cy: input.cy,
+    radiusX: input.radiusX,
+    radiusY: input.radiusY,
+    ...(input.rotation === undefined
+      ? {}
+      : { rotation: normalizeRotation(input.rotation) }),
+  }
+  validateGeometry(geometry)
+  const annotation = cloneAnnotation({
+    ...createAnnotationBase(input.labelId),
+    geometry,
+  })
+  const index = state.annotations.length
   commitDomainCommand(
     annotator,
     'annotation:add',
@@ -268,9 +422,14 @@ export function addMask(annotator: Annotator, input: AddMaskInput): string {
 export function updateAnnotation(
   annotator: Annotator,
   id: string,
-  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
+  geometry: AnnotationGeometry,
 ): void {
   validateGeometry(geometry)
+  const normalizedGeometry = (
+    geometry.type === 'rect' || geometry.type === 'ellipse'
+  ) && geometry.rotation !== undefined
+    ? { ...geometry, rotation: normalizeRotation(geometry.rotation) }
+    : geometry
   const state = getInternalState(annotator)
   const previous = state.annotationsById.get(id)
   if (previous === undefined) {
@@ -279,7 +438,10 @@ export function updateAnnotation(
       `Annotation not found: ${id}`,
     )
   }
-  if (previous.geometry.type !== geometry.type) {
+  if (previous.locked === true) {
+    throw new AnnotatorError('ANNOTATION_LOCKED', `Annotation is locked: ${id}`)
+  }
+  if (previous.geometry.type !== normalizedGeometry.type) {
     throw new AnnotatorError(
       'INVALID_GEOMETRY',
       'Annotation geometry type cannot be changed.',
@@ -287,7 +449,7 @@ export function updateAnnotation(
   }
   const next = cloneAnnotation({
     ...previous,
-    geometry,
+    geometry: normalizedGeometry,
     revision: previous.revision + 1,
     updatedAt: Date.now(),
   } as Annotation)
@@ -325,6 +487,9 @@ export function updateAnnotationLabel(
       `Annotation not found: ${id}`,
     )
   }
+  if (previous.locked === true) {
+    throw new AnnotatorError('ANNOTATION_LOCKED', `Annotation is locked: ${id}`)
+  }
   if (previous.labelId === labelId) {
     return
   }
@@ -353,6 +518,9 @@ export function removeAnnotation(annotator: Annotator, id: string): boolean {
   const annotation = state.annotationsById.get(id)
   if (annotation === undefined) {
     return false
+  }
+  if (annotation.locked === true) {
+    throw new AnnotatorError('ANNOTATION_LOCKED', `Annotation is locked: ${id}`)
   }
   const index = state.annotations.findIndex(item => item.id === id)
   const order = state.spatialIndex.order.get(id)

@@ -1,4 +1,14 @@
 export {
+  clearImageClassification,
+  getClassificationOptions,
+  getImageClassification,
+  setClassificationOptions,
+  setImageClassification,
+} from './classification/classification.js'
+
+export type { ClassificationOption } from './core/types.js'
+
+export {
   createAnnotator,
   destroyAnnotator,
   getSnapshot,
@@ -6,6 +16,9 @@ export {
 
 export {
   addPolygon,
+  addPoint,
+  addPolyline,
+  addEllipse,
   addRect,
   addMask,
   canRedo,
@@ -17,9 +30,32 @@ export {
   updateAnnotation,
   updateAnnotationLabel,
   type AddPolygonInput,
+  type AddPointInput,
+  type AddPolylineInput,
+  type AddEllipseInput,
   type AddRectInput,
   type AddMaskInput,
 } from './core/commands.js'
+
+export {
+  bringForward,
+  bringToFront,
+  groupAnnotations,
+  removeAnnotations,
+  sendBackward,
+  sendToBack,
+  setAnnotationsHidden,
+  setAnnotationsLocked,
+  translateAnnotations,
+  updateAnnotationsLabel,
+  ungroupAnnotations,
+} from './core/arrangement-commands.js'
+
+export {
+  copyAnnotations,
+  duplicateAnnotations,
+  pasteAnnotations,
+} from './core/clipboard.js'
 
 export {
   subscribe,
@@ -35,23 +71,57 @@ export {
   AnnotatorError,
   type Annotation,
   type AnnotationBase,
+  type AnnotationGeometry,
   type AnnotationSnapshot,
   type Annotator,
   type AnnotatorErrorCode,
   type AnnotatorOptions,
   type LabelDefinition,
+  type EllipseAnnotation,
+  type EllipseGeometry,
   type MaskAnnotation,
   type MaskGeometry,
   type PolygonAnnotation,
   type PolygonGeometry,
+  type PointAnnotation,
+  type PointGeometry,
+  type PolylineAnnotation,
+  type PolylineGeometry,
   type RectAnnotation,
   type RectGeometry,
 } from './core/types.js'
 
 export {
+  getRectCenter,
+  getRotatedRectBounds,
+  getRotatedRectCorners,
   normalizeRect,
+  normalizeRotation,
   pointInRect,
+  pointInRotatedRect,
+  rectLocalToWorld,
+  rectWorldToLocal,
 } from './geometry/rect.js'
+
+export {
+  pointDistance,
+  pointInPoint,
+} from './geometry/point.js'
+
+export {
+  getPolylineBounds,
+  insertPolylineVertex,
+  pointInPolyline,
+  pointToSegmentDistance,
+  removePolylineVertex,
+} from './geometry/polyline.js'
+
+export {
+  ellipseLocalToWorld,
+  ellipseWorldToLocal,
+  getEllipseBounds,
+  pointInEllipse,
+} from './geometry/ellipse.js'
 
 export {
   pointInPolygon,
@@ -135,6 +205,26 @@ export {
 } from './tools/index.js'
 
 export {
+  createLassoTool,
+  useLasso,
+} from './tools/lasso-tool.js'
+
+export {
+  createFreehandTool,
+  useFreehand,
+  type FreehandToolOptions,
+} from './tools/freehand-tool.js'
+
+export {
+  createPointTool,
+  reducePointTool,
+  usePoint,
+  type PointToolInput,
+  type PointToolOptions,
+  type PointToolResult,
+} from './tools/point-tool.js'
+
+export {
   createRectTool,
   createRectToolState,
   reduceRectTool,
@@ -145,9 +235,35 @@ export {
   type RectToolState,
 } from './tools/rect-tool.js'
 
+export {
+  createEllipseTool,
+  createEllipseToolState,
+  reduceEllipseTool,
+  useEllipse,
+  type EllipseDraftGeometry,
+  type EllipseToolInput,
+  type EllipseToolOptions,
+  type EllipseToolResult,
+  type EllipseToolState,
+} from './tools/ellipse-tool.js'
+
+export {
+  createPolylineTool,
+  createPolylineToolState,
+  reducePolylineTool,
+  usePolyline,
+  type PolylineToolInput,
+  type PolylineToolOptions,
+  type PolylineToolResult,
+  type PolylineToolState,
+} from './tools/polyline-tool.js'
+
 export type {
   InteractionDraft,
+  EllipseInteractionDraft,
   NormalizedPointerInput,
+  PointInteractionDraft,
+  PolylineInteractionDraft,
   Tool,
   ToolCategory,
   ToolContext,
@@ -170,15 +286,40 @@ export {
 export {
   clearSelection,
   createSelectTool,
+  getRectHandlePoints,
   getSelection,
   movePolygonVertex,
   moveRect,
   removePolygonVertex,
   resizeRect,
+  rotateRect,
   selectAnnotation,
   useSelect,
   type RectHandle,
 } from './tools/select-tool.js'
+
+export {
+  findPolylineSegmentInsertionIndex,
+  getEllipseHandleAtPoint,
+  getEllipseHandlePoints,
+  movePolylineVertex,
+  resizeEllipse,
+  rotateEllipse,
+  type EllipseHandle,
+} from './selection/vector-editing.js'
+
+export {
+  selectAnnotations,
+  selectAnnotationsInBounds,
+  selectAnnotationsInLasso,
+  toggleAnnotationSelection,
+  type SelectionOptions,
+} from './selection/selection-commands.js'
+
+export {
+  annotationIntersectsBounds,
+  annotationIntersectsLasso,
+} from './selection/hit-test.js'
 
 export {
   createBrushTool,

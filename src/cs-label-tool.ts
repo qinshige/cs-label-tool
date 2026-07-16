@@ -17,6 +17,15 @@ import * as PolygonTool from './tools/polygon-tool.js'
 import * as SelectTool from './tools/select-tool.js'
 import * as BrushTool from './tools/brush-tool.js'
 import * as EraserTool from './tools/eraser-tool.js'
+import * as EllipseTool from './tools/ellipse-tool.js'
+import * as PointTool from './tools/point-tool.js'
+import * as PolylineTool from './tools/polyline-tool.js'
+import * as LassoTool from './tools/lasso-tool.js'
+import * as FreehandTool from './tools/freehand-tool.js'
+import * as Arrangement from './core/arrangement-commands.js'
+import * as Clipboard from './core/clipboard.js'
+import * as Selection from './selection/selection-commands.js'
+import * as Classification from './classification/classification.js'
 import * as Components from './components/define.js'
 import type { Tool, ToolCategory, LabelDefinition, Annotator } from './index.js'
 
@@ -28,6 +37,14 @@ export type {
   AnnotatorErrorCode,
   AnnotatorOptions,
   LabelDefinition,
+  ClassificationOption,
+  AnnotationGeometry,
+  EllipseAnnotation,
+  EllipseGeometry,
+  PointAnnotation,
+  PointGeometry,
+  PolylineAnnotation,
+  PolylineGeometry,
   PolygonAnnotation,
   PolygonGeometry,
   RectAnnotation,
@@ -37,6 +54,9 @@ export type {
 
 export type {
   AddPolygonInput,
+  AddPointInput,
+  AddPolylineInput,
+  AddEllipseInput,
   AddRectInput,
   AddMaskInput,
 } from './core/commands.js'
@@ -84,10 +104,34 @@ export type {
   ToolRegistry,
   KeyboardShortcut,
   InteractionDraft,
+  EllipseInteractionDraft,
   NormalizedPointerInput,
+  PointInteractionDraft,
+  PolylineInteractionDraft,
 } from './tools/types.js'
 
 export type { AnnotationToolApi } from './tools/api.js'
+
+export type {
+  PointToolInput,
+  PointToolOptions,
+  PointToolResult,
+} from './tools/point-tool.js'
+
+export type {
+  EllipseDraftGeometry,
+  EllipseToolInput,
+  EllipseToolOptions,
+  EllipseToolResult,
+  EllipseToolState,
+} from './tools/ellipse-tool.js'
+
+export type {
+  PolylineToolInput,
+  PolylineToolOptions,
+  PolylineToolResult,
+  PolylineToolState,
+} from './tools/polyline-tool.js'
 
 export type {
   RectToolInput,
@@ -102,6 +146,10 @@ export type {
   PolygonToolResult,
   PolygonToolState,
 } from './tools/polygon-tool.js'
+
+export type {
+  FreehandToolOptions,
+} from './tools/freehand-tool.js'
 
 export type {
   BrushToolOptions,
@@ -127,11 +175,35 @@ const API = {
 
   addRect: Commands.addRect,
   addPolygon: Commands.addPolygon,
+  addPoint: Commands.addPoint,
+  addPolyline: Commands.addPolyline,
+  addEllipse: Commands.addEllipse,
   addMask: Commands.addMask,
   updateAnnotation: Commands.updateAnnotation,
   removeAnnotation: Commands.removeAnnotation,
   queryAnnotations: Commands.queryAnnotations,
   updateAnnotationLabel: Commands.updateAnnotationLabel,
+  removeAnnotations: Arrangement.removeAnnotations,
+  groupAnnotations: Arrangement.groupAnnotations,
+  ungroupAnnotations: Arrangement.ungroupAnnotations,
+  setAnnotationsLocked: Arrangement.setAnnotationsLocked,
+  setAnnotationsHidden: Arrangement.setAnnotationsHidden,
+  bringForward: Arrangement.bringForward,
+  sendBackward: Arrangement.sendBackward,
+  bringToFront: Arrangement.bringToFront,
+  sendToBack: Arrangement.sendToBack,
+  copyAnnotations: Clipboard.copyAnnotations,
+  pasteAnnotations: Clipboard.pasteAnnotations,
+  duplicateAnnotations: Clipboard.duplicateAnnotations,
+  selectAnnotations: Selection.selectAnnotations,
+  selectAnnotationsInBounds: Selection.selectAnnotationsInBounds,
+  selectAnnotationsInLasso: Selection.selectAnnotationsInLasso,
+  toggleAnnotationSelection: Selection.toggleAnnotationSelection,
+  setClassificationOptions: Classification.setClassificationOptions,
+  getClassificationOptions: Classification.getClassificationOptions,
+  setImageClassification: Classification.setImageClassification,
+  getImageClassification: Classification.getImageClassification,
+  clearImageClassification: Classification.clearImageClassification,
   undo: Commands.undo,
   redo: Commands.redo,
   canUndo: Commands.canUndo,
@@ -158,6 +230,8 @@ const API = {
   createImageSource: ImageSource.createStandardImageSource,
 
   useSelect: SelectTool.useSelect,
+  useLasso: LassoTool.useLasso,
+  useFreehand: FreehandTool.useFreehand,
   useRect: RectTool.useRect,
   usePolygon: PolygonTool.usePolygon,
   useBrush: BrushTool.useBrush,
@@ -171,6 +245,14 @@ const API = {
   listToolsByCategory: Tools.listToolsByCategory,
   cancelGesture: Tools.cancelActiveGesture,
   createToolApi: Tools.createToolApi,
+  createLassoTool: LassoTool.createLassoTool,
+  createFreehandTool: FreehandTool.createFreehandTool,
+  createPointTool: PointTool.createPointTool,
+  usePoint: PointTool.usePoint,
+  createEllipseTool: EllipseTool.createEllipseTool,
+  useEllipse: EllipseTool.useEllipse,
+  createPolylineTool: PolylineTool.createPolylineTool,
+  usePolyline: PolylineTool.usePolyline,
   getActiveToolId: Tools.getActiveToolId,
   deleteSelectedAnnotations: Tools.deleteSelectedAnnotations,
   updateSelectedAnnotationsLabel: Tools.updateSelectedAnnotationsLabel,
@@ -222,10 +304,18 @@ export interface AnnotatorInstance {
   addRect(input: Omit<Commands.AddRectInput, 'type'>): string
   addPolygon(input: Commands.AddPolygonInput): string
   addMask(input: Commands.AddMaskInput): string
-  updateAnnotation(id: string, geometry: Types.RectGeometry | Types.PolygonGeometry | Types.MaskGeometry): void
+  addPoint(input: Commands.AddPointInput): string
+  addPolyline(input: Commands.AddPolylineInput): string
+  addEllipse(input: Commands.AddEllipseInput): string
+  updateAnnotation(id: string, geometry: Types.AnnotationGeometry): void
   updateAnnotationLabel(id: string, labelId: string): void
   removeAnnotation(id: string): boolean
   queryAnnotations(bounds: GeometryTypes.Bounds): readonly Types.Annotation[]
+  setClassificationOptions(options: readonly Types.ClassificationOption[]): void
+  getClassificationOptions(): readonly Types.ClassificationOption[]
+  setImageClassification(id: string): void
+  getImageClassification(): string | null
+  clearImageClassification(): void
 
   undo(): boolean
   redo(): boolean
@@ -247,7 +337,11 @@ export interface AnnotatorInstance {
   resizeViewport(): void
 
   useSelect(): void
+  useLasso(): void
+  usePoint(options?: Partial<PointTool.PointToolOptions>): void
   useRect(options?: Partial<RectTool.RectToolOptions>): void
+  useEllipse(options?: Partial<EllipseTool.EllipseToolOptions>): void
+  usePolyline(options?: Partial<PolylineTool.PolylineToolOptions>): void
   usePolygon(options?: Partial<PolygonTool.PolygonToolOptions>): void
   useBrush(options?: Partial<BrushTool.BrushToolOptions>): void
   useEraser(options?: Partial<EraserTool.EraserToolOptions>): void
@@ -290,6 +384,18 @@ function createInstance(annotator: Annotator): AnnotatorInstance {
       return Commands.addMask(annotator, input)
     },
 
+    addPoint(input) {
+      return Commands.addPoint(annotator, input)
+    },
+
+    addPolyline(input) {
+      return Commands.addPolyline(annotator, input)
+    },
+
+    addEllipse(input) {
+      return Commands.addEllipse(annotator, input)
+    },
+
     updateAnnotation(id, geometry) {
       Commands.updateAnnotation(annotator, id, geometry)
     },
@@ -304,6 +410,26 @@ function createInstance(annotator: Annotator): AnnotatorInstance {
 
     queryAnnotations(bounds) {
       return Commands.queryAnnotations(annotator, bounds)
+    },
+
+    setClassificationOptions(options) {
+      Classification.setClassificationOptions(annotator, options)
+    },
+
+    getClassificationOptions() {
+      return Classification.getClassificationOptions(annotator)
+    },
+
+    setImageClassification(id) {
+      Classification.setImageClassification(annotator, id)
+    },
+
+    getImageClassification() {
+      return Classification.getImageClassification(annotator)
+    },
+
+    clearImageClassification() {
+      Classification.clearImageClassification(annotator)
     },
 
     undo() {
@@ -374,8 +500,24 @@ function createInstance(annotator: Annotator): AnnotatorInstance {
       SelectTool.useSelect(annotator)
     },
 
+    useLasso() {
+      LassoTool.useLasso(annotator)
+    },
+
+    usePoint(options) {
+      PointTool.usePoint(annotator, options)
+    },
+
     useRect(options) {
       RectTool.useRect(annotator, options)
+    },
+
+    useEllipse(options) {
+      EllipseTool.useEllipse(annotator, options)
+    },
+
+    usePolyline(options) {
+      PolylineTool.usePolyline(annotator, options)
     },
 
     usePolygon(options) {

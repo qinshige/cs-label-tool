@@ -13,6 +13,7 @@ export type ChangeKind =
   | 'label:add'
   | 'label:update'
   | 'selection:update'
+  | 'classification:update'
 
 export interface ChangeEvent {
   readonly type: 'change'

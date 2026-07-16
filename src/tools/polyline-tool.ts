@@ -1,63 +1,53 @@
-import { validatePolygon } from '../geometry/polygon.js'
-import type { Point } from '../geometry/types.js'
-import { addPolygon } from '../core/commands.js'
+import { addPolyline } from '../core/commands.js'
 import { AnnotatorError, type Annotator } from '../core/types.js'
+import type { Point } from '../geometry/types.js'
 import { getActiveLabel } from '../labels/labels.js'
 import { activateTool } from './controller.js'
-import type {
-  NormalizedPointerInput,
-  Tool,
-  ToolContext,
-} from './types.js'
+import type { NormalizedPointerInput, Tool, ToolContext } from './types.js'
 
-export interface PolygonToolState {
+export interface PolylineToolState {
   readonly points: readonly Point[]
   readonly preview: Point | null
 }
 
-export type PolygonToolInput =
+export type PolylineToolInput =
   | { readonly type: 'cancel' }
   | { readonly type: 'commit' }
   | { readonly type: 'remove-last' }
   | { readonly type: 'move'; readonly imagePoint: Point }
   | { readonly type: 'point'; readonly imagePoint: Point }
 
-export interface PolygonToolResult {
-  readonly state: PolygonToolState
+export interface PolylineToolResult {
+  readonly state: PolylineToolState
   readonly draft?: readonly Point[]
   readonly commit?: readonly Point[]
 }
 
-export function createPolygonToolState(): PolygonToolState {
+export function createPolylineToolState(): PolylineToolState {
   return { points: [], preview: null }
 }
 
-export function reducePolygonTool(
-  state: PolygonToolState,
-  input: PolygonToolInput,
-): PolygonToolResult {
-  // points 是已确认顶点，preview 只用于显示当前鼠标位置。
+export function reducePolylineTool(
+  state: PolylineToolState,
+  input: PolylineToolInput,
+): PolylineToolResult {
   if (input.type === 'cancel') {
-    return { state: createPolygonToolState() }
+    return { state: createPolylineToolState() }
   }
   if (input.type === 'move') {
     const next = { ...state, preview: input.imagePoint }
-    return {
-      state: next,
-      draft: [...next.points, input.imagePoint],
-    }
+    return { state: next, draft: [...next.points, input.imagePoint] }
   }
   if (input.type === 'remove-last') {
     const next = { ...state, points: state.points.slice(0, -1) }
     return { state: next, draft: next.points }
   }
   if (input.type === 'commit') {
-    // 提交前统一检查点数、自相交和面积。
-    if (!validatePolygon(state.points).valid) {
+    if (state.points.length < 2) {
       return { state }
     }
     return {
-      state: createPolygonToolState(),
+      state: createPolylineToolState(),
       commit: [...state.points],
     }
   }
@@ -77,7 +67,7 @@ export function reducePolygonTool(
   return { state: next, draft: next.points }
 }
 
-export interface PolygonToolOptions {
+export interface PolylineToolOptions {
   readonly labelId?: string
 }
 
@@ -89,34 +79,29 @@ function resolveLabelId(
   if (labelId === null) {
     throw new AnnotatorError(
       'UNKNOWN_LABEL',
-      'A label must be active before drawing a polygon.',
+      'A label must be active before drawing a polyline.',
     )
   }
   return labelId
 }
 
-export function createPolygonTool(options: PolygonToolOptions): Tool {
-  let state = createPolygonToolState()
+export function createPolylineTool(options: PolylineToolOptions = {}): Tool {
+  let state = createPolylineToolState()
 
-  const applyResult = (
-    result: PolygonToolResult,
-    context: ToolContext,
-  ) => {
+  const applyResult = (result: PolylineToolResult, context: ToolContext) => {
     state = result.state
     if (result.draft !== undefined) {
-      const labelId = resolveLabelId(context.annotator, options.labelId)
       context.setDraft({
-        type: 'polygon',
+        type: 'polyline',
         points: result.draft,
-        labelId,
+        labelId: resolveLabelId(context.annotator, options.labelId),
       })
     } else if (state.points.length === 0) {
       context.clearDraft()
     }
     if (result.commit !== undefined) {
-      const labelId = resolveLabelId(context.annotator, options.labelId)
-      addPolygon(context.annotator, {
-        labelId,
+      addPolyline(context.annotator, {
+        labelId: resolveLabelId(context.annotator, options.labelId),
         points: result.commit,
       })
       context.clearDraft()
@@ -124,32 +109,27 @@ export function createPolygonTool(options: PolygonToolOptions): Tool {
   }
 
   const commit = (context: ToolContext) => {
-    applyResult(reducePolygonTool(state, { type: 'commit' }), context)
+    applyResult(reducePolylineTool(state, { type: 'commit' }), context)
   }
 
   return {
-    id: 'polygon',
-    name: '多边形',
-    description: '绘制多边形标注',
-    icon: '⬡',
+    id: 'polyline',
+    name: '折线',
+    description: '绘制道路、边界和路径',
+    icon: '⌁',
     cursor: 'crosshair',
     category: 'drawing',
-    shortcuts: [{ key: 'p' }],
-    handle(input: NormalizedPointerInput, context: ToolContext) {
+    shortcuts: [{ key: 'l' }],
+    handle(input, context) {
       if (input.type === 'cancel') {
-        applyResult(reducePolygonTool(state, { type: 'cancel' }), context)
-        return
-      }
-      if (input.type === 'move' && state.points.length > 0) {
-        // 移动鼠标只更新预览，不增加正式顶点。
-        applyResult(reducePolygonTool(state, {
+        applyResult(reducePolylineTool(state, { type: 'cancel' }), context)
+      } else if (input.type === 'move' && state.points.length > 0) {
+        applyResult(reducePolylineTool(state, {
           type: 'move',
           imagePoint: input.imagePoint,
         }), context)
-        return
-      }
-      if (input.type === 'down') {
-        applyResult(reducePolygonTool(state, {
+      } else if (input.type === 'down') {
+        applyResult(reducePolylineTool(state, {
           type: 'point',
           imagePoint: input.imagePoint,
         }), context)
@@ -165,21 +145,21 @@ export function createPolygonTool(options: PolygonToolOptions): Tool {
       } else if (event.key === 'Backspace') {
         event.preventDefault()
         applyResult(
-          reducePolygonTool(state, { type: 'remove-last' }),
+          reducePolylineTool(state, { type: 'remove-last' }),
           context,
         )
       }
     },
     cancel(context) {
-      applyResult(reducePolygonTool(state, { type: 'cancel' }), context)
+      applyResult(reducePolylineTool(state, { type: 'cancel' }), context)
     },
   }
 }
 
-export function usePolygon(
+export function usePolyline(
   annotator: Annotator,
-  options: Partial<PolygonToolOptions> = {},
+  options: Partial<PolylineToolOptions> = {},
 ): void {
   resolveLabelId(annotator, options.labelId)
-  activateTool(annotator, createPolygonTool(options))
+  activateTool(annotator, createPolylineTool(options))
 }

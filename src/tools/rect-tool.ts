@@ -154,11 +154,6 @@ export function useRect(
   annotator: Annotator,
   options: Partial<RectToolOptions> = {},
 ): void {
-  const labelId = resolveLabelId(annotator, options.labelId)
-  activateTool(annotator, createRectTool({
-    labelId,
-    ...(options.minimumSize === undefined
-      ? {}
-      : { minimumSize: options.minimumSize }),
-  }))
+  resolveLabelId(annotator, options.labelId)
+  activateTool(annotator, createRectTool(options))
 }

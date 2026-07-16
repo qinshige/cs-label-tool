@@ -1,41 +1,62 @@
 import {
   addLabel,
   addMask,
+  addEllipse,
+  addPoint,
   addPolygon,
+  addPolyline,
   addRect,
+  bringForward,
+  bringToFront,
   canRedo,
   canUndo,
   clearSelection,
+  clearImageClassification,
+  copyAnnotations,
   createStandardImageSource,
   defineAnnotatorElements,
   fitToScreen,
   getActiveLabel,
   getSelection,
+  getImageClassification,
   getSnapshot,
   getZoom,
   hasImage,
   imageToClient,
   listTools,
   redo,
-  registerTool,
+  duplicateAnnotations,
+  groupAnnotations,
+  pasteAnnotations,
+  removeAnnotations,
   removeAnnotation,
-  selectAnnotation,
+  selectAnnotations,
+  setAnnotationsHidden,
+  setAnnotationsLocked,
+  setClassificationOptions,
+  setImageClassification,
+  sendBackward,
+  sendToBack,
   setActiveLabel,
   setImageSource,
   subscribe,
+  toggleAnnotationSelection,
   undo,
   updateAnnotationLabel,
+  ungroupAnnotations,
   updateLabel,
   useBrush,
+  useEllipse,
   useEraser,
+  useFreehand,
+  useLasso,
+  usePoint,
   usePolygon,
+  usePolyline,
   useRect,
   useSelect,
   zoomBy,
   type CSAnnotatorElement,
-  type Tool,
-  type ToolContext,
-  type NormalizedPointerInput,
 } from '../src/index.js'
 
 defineAnnotatorElements()
@@ -53,6 +74,13 @@ const labels = [
 labels.forEach(label => addLabel(annotator, label))
 setActiveLabel(annotator, 'person')
 
+const classifications = [
+  { id: 'normal', name: '正常', color: '#22c55e' },
+  { id: 'abnormal', name: '异常', color: '#ef4444' },
+  { id: 'review', name: '待复核', color: '#f59e0b' },
+]
+setClassificationOptions(annotator, classifications)
+
 const countEl = document.getElementById('anno-count')!
 const currentLabelBadge = document.getElementById('current-label')!
 const currentLabelText = document.getElementById('current-label-text')!
@@ -65,6 +93,17 @@ const btnRedo = document.getElementById('btn-redo')! as HTMLButtonElement
 const snapshotDialog = document.getElementById('snapshot-dialog')! as HTMLDialogElement
 const snapshotJsonEl = document.getElementById('snapshot-json')!
 let displayedSnapshotJson = ''
+
+function geometryTypeName(type: string): string {
+  return ({
+    rect: '矩形',
+    polygon: '多边形',
+    mask: '涂抹',
+    point: '点',
+    polyline: '折线',
+    ellipse: '椭圆',
+  } as Record<string, string>)[type] ?? type
+}
 
 function updateStats(): void {
   const snapshot = getSnapshot(annotator)
@@ -89,14 +128,34 @@ function updateStats(): void {
     const selected = snapshot.annotations.find(a => a.id === selectedIds[0])
     if (selected) {
       const label = snapshot.labels.find(l => l.id === selected.labelId)
+      const rotationInfo = selected.geometry.type === 'rect' || selected.geometry.type === 'ellipse'
+        ? `<div class="info-row"><span>角度</span><span>${Math.round((selected.geometry.rotation ?? 0) * 10) / 10}°</span></div>`
+        : ''
       selectedInfoEl.innerHTML = `
+        <div class="info-row"><span>已选</span><span>${selectedIds.length} 个</span></div>
         <div class="info-row"><span>ID</span><span>${selected.id.slice(0, 8)}...</span></div>
         <div class="info-row"><span>标签</span><span style="color: ${label?.color}">${label?.name}</span></div>
-        <div class="info-row"><span>类型</span><span>${selected.geometry.type === 'rect' ? '矩形' : selected.geometry.type === 'polygon' ? '多边形' : 'Mask'}</span></div>
-        <div class="info-row"><span>操作</span><div style="display:flex;gap:4px;">
+        <div class="info-row"><span>类型</span><span>${geometryTypeName(selected.geometry.type)}</span></div>
+        <div class="info-row"><span>分组</span><span>${selected.groupId?.slice(0, 8) ?? '未分组'}</span></div>
+        <div class="info-row"><span>状态</span><span>${selected.locked ? '已锁定' : '可编辑'}${selected.hidden ? ' · 已隐藏' : ''}</span></div>
+        ${rotationInfo}
+        <div class="batch-actions">
+          <button class="mini-btn" onclick="window._groupSelected()">分组</button>
+          <button class="mini-btn" onclick="window._ungroupSelected()">解组</button>
+          <button class="mini-btn" onclick="window._duplicateSelected()">克隆</button>
+          <button class="mini-btn" onclick="window._copySelected()">复制</button>
+          <button class="mini-btn" onclick="window._pasteSelected()">粘贴</button>
           <button class="mini-btn" onclick="window._changeSelectedLabel()">改标签</button>
+          <button class="mini-btn" onclick="window._lockSelected(true)">锁定</button>
+          <button class="mini-btn" onclick="window._lockSelected(false)">解锁</button>
+          <button class="mini-btn" onclick="window._hideSelected(true)">隐藏</button>
+          <button class="mini-btn" onclick="window._hideSelected(false)">显示</button>
+          <button class="mini-btn" onclick="window._arrangeSelected('front')">置顶</button>
+          <button class="mini-btn" onclick="window._arrangeSelected('forward')">上移</button>
+          <button class="mini-btn" onclick="window._arrangeSelected('backward')">下移</button>
+          <button class="mini-btn" onclick="window._arrangeSelected('back')">置底</button>
           <button class="mini-btn danger" onclick="window._deleteSelected()">删除</button>
-        </div></div>
+        </div>
       `
     }
   } else {
@@ -121,19 +180,47 @@ function updateStats(): void {
         const label = snapshot.labels.find(l => l.id === a.labelId)
         const isSelected = getSelection(annotator).includes(a.id)
         return `
-          <div class="anno-item ${isSelected ? 'selected' : ''}" onclick="window._selectAnnotationById('${a.id}')">
+          <div class="anno-item ${isSelected ? 'selected' : ''} ${a.hidden ? 'hidden' : ''}" onclick="window._selectAnnotationById('${a.id}', event)">
             <span class="anno-index">${i + 1}</span>
             <span class="anno-color" style="background-color: ${label?.color}"></span>
             <span class="anno-label">${label?.name}</span>
-            <span class="anno-type">${a.geometry.type === 'rect' ? '矩形' : a.geometry.type === 'polygon' ? '多边形' : '涂抹'}</span>
-            <button class="anno-delete" onclick="event.stopPropagation(); window._removeAnnotationById('${a.id}')">×</button>
+            <span class="anno-type">${geometryTypeName(a.geometry.type)}</span>
+            <span class="anno-actions">
+              <button class="anno-action" title="${a.locked ? '解锁' : '锁定'}" onclick="event.stopPropagation(); window._toggleLocked('${a.id}', ${!a.locked})">${a.locked ? '🔒' : '🔓'}</button>
+              <button class="anno-action" title="${a.hidden ? '显示' : '隐藏'}" onclick="event.stopPropagation(); window._toggleHidden('${a.id}', ${!a.hidden})">${a.hidden ? '◌' : '◉'}</button>
+              <button class="anno-delete" title="删除" onclick="event.stopPropagation(); window._removeAnnotationById('${a.id}')">×</button>
+            </span>
           </div>
         `
       }).join('')
 }
 
+function syncClassification(): void {
+  const current = getImageClassification(annotator)
+  const list = document.getElementById('classification-list')!
+  list.innerHTML = `
+    <button class="classification-btn ${current === null ? 'active' : ''}" data-id="">
+      <span class="classification-dot" style="background:#64748b"></span>未分类
+    </button>
+    ${classifications.map(option => `
+      <button class="classification-btn ${current === option.id ? 'active' : ''}" data-id="${option.id}">
+        <span class="classification-dot" style="background:${option.color}"></span>${option.name}
+      </button>
+    `).join('')}
+  `
+  list.querySelectorAll<HTMLButtonElement>('.classification-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.id ?? ''
+      if (id === '') clearImageClassification(annotator)
+      else setImageClassification(annotator, id)
+    })
+  })
+}
+
 subscribe(annotator, 'change', updateStats)
+subscribe(annotator, 'change', syncClassification)
 updateStats()
+syncClassification()
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 function toast(msg: string): void {
@@ -152,7 +239,8 @@ function activateCurrentBrush(): void {
 }
 
 function syncToolList(): void {
-  const tools = listTools(annotator)
+  // Demo 默认展示标注工具；套索选择仍保留在公共 API 中供业务方按需使用。
+  const tools = listTools(annotator).filter(tool => tool.id !== 'lasso')
   const listEl = document.getElementById('tool-list')!
   listEl.innerHTML = tools.map(tool => `
     <button class="tool-btn ${tool.id === currentToolId ? 'active' : ''}" data-tool-id="${tool.id}" title="${tool.description ?? ''}">
@@ -164,15 +252,19 @@ function syncToolList(): void {
     btn.addEventListener('click', () => {
       const toolId = btn.getAttribute('data-tool-id')!
       currentToolId = toolId
-      if (toolId !== 'select') {
+      if (toolId !== 'select' && toolId !== 'lasso') {
         clearSelection(annotator)
       }
       if (toolId === 'select') { useSelect(annotator); toast('选择工具') }
+      else if (toolId === 'lasso') { useLasso(annotator); toast('套索工具') }
+      else if (toolId === 'freehand') { useFreehand(annotator); toast('自由轮廓工具') }
+      else if (toolId === 'point') { usePoint(annotator); toast('点工具') }
       else if (toolId === 'rect') { useRect(annotator); toast('矩形工具') }
+      else if (toolId === 'ellipse') { useEllipse(annotator); toast('椭圆工具 · Shift 绘制正圆') }
+      else if (toolId === 'polyline') { usePolyline(annotator); toast('折线工具') }
       else if (toolId === 'polygon') { usePolygon(annotator); toast('多边形工具') }
       else if (toolId === 'brush') { activateCurrentBrush(); toast(`涂抹工具 · ${brushSize}px`) }
       else if (toolId === 'eraser') { useEraser(annotator); toast('橡皮擦工具') }
-      else if (toolId === 'point-marker') { useSelect(annotator); toast('点标记工具') }
       syncToolList()
     })
   })
@@ -221,26 +313,6 @@ function syncLabelColors(): void {
   })
 }
 
-const pointMarkerTool: Tool = {
-  id: 'point-marker',
-  name: '点标记',
-  description: '在图像上标记单个点',
-  icon: '📍',
-  cursor: 'crosshair',
-  category: 'drawing',
-  handle(input: NormalizedPointerInput, context: ToolContext) {
-    if (input.type === 'down') {
-      const { x, y } = input.imagePoint
-      addRect(context.annotator, {
-        labelId: getActiveLabel(context.annotator) || 'other',
-        x: x - 4, y: y - 4, width: 8, height: 8,
-      })
-    }
-  },
-  cancel() {},
-}
-
-registerTool(annotator, pointMarkerTool)
 syncToolList()
 syncLabelSelection()
 subscribe(annotator, 'change', syncLabelColors)
@@ -256,17 +328,79 @@ brushSizeInput.addEventListener('input', () => {
   }
 })
 
-;(window as any)._selectAnnotationById = (id: string) => {
+;(window as any)._selectAnnotationById = (id: string, event: MouseEvent) => {
   currentToolId = 'select'
   useSelect(annotator)
-  selectAnnotation(annotator, id)
+  if (event.shiftKey) {
+    toggleAnnotationSelection(annotator, id, { expandGroups: !event.altKey })
+  } else {
+    selectAnnotations(annotator, [id], { expandGroups: !event.altKey })
+  }
   syncToolList()
   toast('已选中')
 }
 
 (window as any)._removeAnnotationById = (id: string) => {
-  removeAnnotation(annotator, id)
-  toast('已删除')
+  try {
+    removeAnnotation(annotator, id)
+    toast('已删除')
+  } catch {
+    toast('标注已锁定，不能删除')
+  }
+}
+
+;(window as any)._toggleLocked = (id: string, locked: boolean) => {
+  setAnnotationsLocked(annotator, [id], locked)
+}
+
+;(window as any)._toggleHidden = (id: string, hidden: boolean) => {
+  const changed = setAnnotationsHidden(annotator, [id], hidden)
+  if (changed === 0) toast('请先解锁标注')
+}
+
+;(window as any)._groupSelected = () => {
+  const id = groupAnnotations(annotator, getSelection(annotator))
+  toast(id ? '已分组' : '至少选择两个未锁定标注')
+}
+
+;(window as any)._ungroupSelected = () => {
+  toast(`已取消 ${ungroupAnnotations(annotator, getSelection(annotator))} 个分组成员`)
+}
+
+;(window as any)._copySelected = () => {
+  toast(`已复制 ${copyAnnotations(annotator, getSelection(annotator))} 个标注`)
+}
+
+;(window as any)._pasteSelected = () => {
+  toast(`已粘贴 ${pasteAnnotations(annotator).length} 个标注`)
+}
+
+;(window as any)._duplicateSelected = () => {
+  toast(`已克隆 ${duplicateAnnotations(annotator, getSelection(annotator)).length} 个标注`)
+}
+
+;(window as any)._lockSelected = (locked: boolean) => {
+  const changed = setAnnotationsLocked(annotator, getSelection(annotator), locked)
+  toast(`${locked ? '锁定' : '解锁'}了 ${changed} 个标注`)
+}
+
+;(window as any)._hideSelected = (hidden: boolean) => {
+  const changed = setAnnotationsHidden(annotator, getSelection(annotator), hidden)
+  toast(`${hidden ? '隐藏' : '显示'}了 ${changed} 个标注`)
+}
+
+;(window as any)._arrangeSelected = (
+  mode: 'front' | 'forward' | 'backward' | 'back',
+) => {
+  const selected = getSelection(annotator)
+  const changed = mode === 'front'
+    ? bringToFront(annotator, selected)
+    : mode === 'forward'
+      ? bringForward(annotator, selected)
+      : mode === 'backward'
+        ? sendBackward(annotator, selected)
+        : sendToBack(annotator, selected)
+  toast(`已调整 ${changed} 个标注的图层`)
 }
 
 (window as any)._changeSelectedLabel = () => {
@@ -279,10 +413,14 @@ brushSizeInput.addEventListener('input', () => {
   
   const label = labels.find(l => l.name === newName || l.id === newName)
   if (label) {
+    let changed = 0
     selected.forEach(id => {
-      updateAnnotationLabel(annotator, id, label.id)
+      try {
+        updateAnnotationLabel(annotator, id, label.id)
+        changed += 1
+      } catch {}
     })
-    toast(`已修改标签为: ${label.name}`)
+    toast(`已将 ${changed} 个标注改为: ${label.name}`)
   } else {
     toast('标签不存在')
   }
@@ -291,8 +429,7 @@ brushSizeInput.addEventListener('input', () => {
 (window as any)._deleteSelected = () => {
   const selected = getSelection(annotator)
   if (selected.length > 0) {
-    selected.forEach(id => removeAnnotation(annotator, id))
-    toast(`已删除 ${selected.length} 个标注`)
+    toast(`已删除 ${removeAnnotations(annotator, selected)} 个标注`)
   }
 }
 
@@ -333,27 +470,76 @@ function importAnnotations(): void {
     try {
       const data = JSON.parse(await file.text())
       if (data.annotations) {
+        const imported = new Map<string, string>()
         data.annotations.forEach((anno: any) => {
+          let newId: string | null = null
           if (anno.geometry.type === 'rect') {
-            addRect(annotator, {
+            newId = addRect(annotator, {
               labelId: anno.labelId,
               x: anno.geometry.x, y: anno.geometry.y,
               width: anno.geometry.width, height: anno.geometry.height,
+              ...(anno.geometry.rotation === undefined
+                ? {}
+                : { rotation: anno.geometry.rotation }),
             })
           } else if (anno.geometry.type === 'polygon') {
-            addPolygon(annotator, {
+            newId = addPolygon(annotator, {
               labelId: anno.labelId,
               points: anno.geometry.points.map((p: number[]) => ({ x: p[0], y: p[1] })),
             })
           } else if (anno.geometry.type === 'mask') {
-            addMask(annotator, {
+            newId = addMask(annotator, {
               labelId: anno.labelId,
               width: anno.geometry.width,
               height: anno.geometry.height,
               rle: anno.geometry.rle,
             })
+          } else if (anno.geometry.type === 'point') {
+            newId = addPoint(annotator, {
+              labelId: anno.labelId,
+              x: anno.geometry.x,
+              y: anno.geometry.y,
+            })
+          } else if (anno.geometry.type === 'polyline') {
+            newId = addPolyline(annotator, {
+              labelId: anno.labelId,
+              points: anno.geometry.points.map((p: number[]) => ({ x: p[0], y: p[1] })),
+            })
+          } else if (anno.geometry.type === 'ellipse') {
+            newId = addEllipse(annotator, {
+              labelId: anno.labelId,
+              cx: anno.geometry.cx,
+              cy: anno.geometry.cy,
+              radiusX: anno.geometry.radiusX,
+              radiusY: anno.geometry.radiusY,
+              ...(anno.geometry.rotation === undefined ? {} : { rotation: anno.geometry.rotation }),
+            })
+          }
+          if (newId !== null) {
+            imported.set(anno.id, newId)
           }
         })
+        const groups = new Map<string, string[]>()
+        data.annotations.forEach((anno: any) => {
+          const newId = imported.get(anno.id)
+          if (newId === undefined) return
+          if (anno.groupId) {
+            groups.set(anno.groupId, [...(groups.get(anno.groupId) ?? []), newId])
+          }
+        })
+        groups.forEach(ids => groupAnnotations(annotator, ids))
+        data.annotations.forEach((anno: any) => {
+          const newId = imported.get(anno.id)
+          if (newId === undefined) return
+          if (anno.hidden) setAnnotationsHidden(annotator, [newId], true)
+          if (anno.locked) setAnnotationsLocked(annotator, [newId], true)
+        })
+        if (Array.isArray(data.classificationOptions)) {
+          setClassificationOptions(annotator, data.classificationOptions)
+          if (data.classificationId) {
+            setImageClassification(annotator, data.classificationId)
+          }
+        }
         toast(`已导入 ${data.annotations.length} 个标注`)
       }
     } catch {
@@ -365,7 +551,10 @@ function importAnnotations(): void {
 
 function clearAllAnnotations(): void {
   if (confirm('确定清空所有标注？')) {
-    getSnapshot(annotator).annotations.forEach(a => removeAnnotation(annotator, a.id))
+    const snapshot = getSnapshot(annotator)
+    const locked = snapshot.annotations.filter(item => item.locked).map(item => item.id)
+    if (locked.length > 0) setAnnotationsLocked(annotator, locked, false)
+    removeAnnotations(annotator, snapshot.annotations.map(item => item.id))
     toast('已清空')
   }
 }
@@ -418,6 +607,9 @@ document.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase()
   if (mod && key === 'z') { e.preventDefault(); undo(annotator) && toast('撤销'); return }
   if (mod && key === 'y') { e.preventDefault(); redo(annotator) && toast('重做'); return }
+  if (mod && key === 'c') { e.preventDefault(); (window as any)._copySelected(); return }
+  if (mod && key === 'v') { e.preventDefault(); (window as any)._pasteSelected(); return }
+  if (mod && key === 'd') { e.preventDefault(); (window as any)._duplicateSelected(); return }
   switch (key) {
     case '=': case '+': zoomBy(annotator, 1.25); break
     case '-': zoomBy(annotator, 0.8); break
@@ -425,8 +617,7 @@ document.addEventListener('keydown', (e) => {
     case 'delete': case 'backspace':
       const selected = getSelection(annotator)
       if (selected.length > 0) {
-        selected.forEach(id => removeAnnotation(annotator, id))
-        toast(`已删除 ${selected.length} 个标注`)
+        toast(`已删除 ${removeAnnotations(annotator, selected)} 个标注`)
       }
       break
   }
@@ -447,8 +638,36 @@ try {
 }
 
 ;(window as any).demoTest = {
+  useLasso() {
+    useLasso(annotator)
+  },
   addRect(labelId: string, bounds: { x: number; y: number; width: number; height: number }) {
     return addRect(annotator, { labelId, ...bounds })
+  },
+  addPoint(labelId: string, point: { x: number; y: number }) {
+    return addPoint(annotator, { labelId, ...point })
+  },
+  addEllipse(labelId: string, geometry: {
+    cx: number
+    cy: number
+    radiusX: number
+    radiusY: number
+    rotation?: number
+  }) {
+    return addEllipse(annotator, { labelId, ...geometry })
+  },
+  select(ids: string[], expandGroups = true) {
+    return selectAnnotations(annotator, ids, { expandGroups })
+  },
+  group(ids: string[]) {
+    return groupAnnotations(annotator, ids)
+  },
+  lock(ids: string[], locked: boolean) {
+    return setAnnotationsLocked(annotator, ids, locked)
+  },
+  zoom(scale: number) {
+    const current = getZoom(annotator)
+    zoomBy(annotator, scale / current)
   },
   snapshot() {
     return getSnapshot(annotator)

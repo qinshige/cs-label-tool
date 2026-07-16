@@ -64,6 +64,10 @@ function normalizePointer(
     buttons: event.buttons,
     pressure: event.pressure,
     detail: event.detail,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
   }
 }
 
@@ -84,9 +88,7 @@ export function createToolController(
   canvas.tabIndex = 0
 
   const down = (event: PointerEvent) => {
-    const startsPan = event.button === 1 || (
-      event.button === 0 && (event.altKey || spacePressed)
-    )
+    const startsPan = event.button === 1 || (event.button === 0 && spacePressed)
     if (startsPan) {
       // 平移是临时导航手势，不应继续当前绘制或编辑状态。
       event.preventDefault()

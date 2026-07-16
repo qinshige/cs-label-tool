@@ -5,8 +5,10 @@ import type {
   MaskAnnotation,
   PolygonAnnotation,
   RectAnnotation,
+  RectGeometry,
 } from '../core/types.js'
 import { screenToImage } from '../viewport/viewport.js'
+import { getRotatedRectCorners } from '../geometry/rect.js'
 import { queryAnnotations } from '../core/commands.js'
 import {
   decodeBinaryMaskRle,
@@ -14,7 +16,13 @@ import {
 } from '../mask/rle.js'
 import { createCanvasLayers } from './canvas-layers.js'
 import { createRenderScheduler, type RenderLayer } from './scheduler.js'
-import type { EraserInteractionDraft } from '../tools/types.js'
+import type {
+  EraserInteractionDraft,
+  SelectionInteractionDraft,
+} from '../tools/types.js'
+import { getRectHandlePoints } from '../tools/select-tool.js'
+import { getEllipseHandlePoints } from '../selection/vector-editing.js'
+import { getPointLabelLayout } from './label-layout.js'
 
 export interface CanvasRenderer {
   readonly eventCanvas: HTMLCanvasElement
@@ -30,6 +38,72 @@ function resetAndClear(
   // clearRect 会受当前 transform 影响，清空前必须恢复单位矩阵。
   context.setTransform(1, 0, 0, 1, 0, 0)
   context.clearRect(0, 0, canvas.width, canvas.height)
+}
+
+function traceRotatedRect(
+  context: CanvasRenderingContext2D,
+  geometry: RectGeometry,
+): void {
+  const corners = getRotatedRectCorners(geometry)
+  const first = corners[0]
+  if (first === undefined) {
+    return
+  }
+  context.beginPath()
+  context.moveTo(first.x, first.y)
+  for (const point of corners.slice(1)) {
+    context.lineTo(point.x, point.y)
+  }
+  context.closePath()
+}
+
+function traceEllipse(
+  context: CanvasRenderingContext2D,
+  geometry: {
+    readonly cx: number
+    readonly cy: number
+    readonly radiusX: number
+    readonly radiusY: number
+    readonly rotation?: number
+  },
+): void {
+  context.beginPath()
+  context.ellipse(
+    geometry.cx,
+    geometry.cy,
+    geometry.radiusX,
+    geometry.radiusY,
+    (geometry.rotation ?? 0) * Math.PI / 180,
+    0,
+    Math.PI * 2,
+  )
+}
+
+function renderSelectionOutline(
+  context: CanvasRenderingContext2D,
+  outline: SelectionInteractionDraft,
+  scale: number,
+): void {
+  const first = outline.points[0]
+  if (first === undefined) {
+    return
+  }
+  context.strokeStyle = '#1677ff'
+  context.fillStyle = '#1677ff'
+  context.lineWidth = 2 / scale
+  context.setLineDash([6 / scale, 4 / scale])
+  context.beginPath()
+  context.moveTo(first.x, first.y)
+  for (const point of outline.points.slice(1)) {
+    context.lineTo(point.x, point.y)
+  }
+  if (outline.mode === 'lasso') {
+    context.closePath()
+  }
+  context.globalAlpha = 0.1
+  context.fill()
+  context.globalAlpha = 1
+  context.stroke()
 }
 
 function renderMaskAnnotation(
@@ -157,6 +231,9 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
     context.lineWidth = 2 / scale
 
     for (const annotation of annotations) {
+      if (annotation.hidden === true) {
+        continue
+      }
       if (
         state.interactionDraft?.type === 'vector' &&
         state.interactionDraft.annotationId === annotation.id &&
@@ -172,25 +249,24 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
 
       let labelX = 0
       let labelY = 0
+      let labelFontSize = 14 / scale
+      let labelPadding = 4 / scale
 
       if (annotation.geometry.type === 'rect') {
         const rect = annotation as RectAnnotation
-        labelX = rect.geometry.x
-        labelY = rect.geometry.y
+        const corners = getRotatedRectCorners(rect.geometry)
+        const labelPoint = corners.reduce((topmost, point) =>
+          point.y < topmost.y || (point.y === topmost.y && point.x < topmost.x)
+            ? point
+            : topmost,
+        )
+        labelX = labelPoint.x
+        labelY = labelPoint.y
+        traceRotatedRect(context, rect.geometry)
         context.globalAlpha = 0.16
-        context.fillRect(
-          rect.geometry.x,
-          rect.geometry.y,
-          rect.geometry.width,
-          rect.geometry.height,
-        )
+        context.fill()
         context.globalAlpha = 1
-        context.strokeRect(
-          rect.geometry.x,
-          rect.geometry.y,
-          rect.geometry.width,
-          rect.geometry.height,
-        )
+        context.stroke()
       } else if (annotation.geometry.type === 'polygon') {
         const polygon = annotation as PolygonAnnotation
         const first = polygon.geometry.points[0]
@@ -205,6 +281,43 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
           context.lineTo(x, y)
         }
         context.closePath()
+        context.globalAlpha = 0.16
+        context.fill()
+        context.globalAlpha = 1
+        context.stroke()
+      } else if (annotation.geometry.type === 'point') {
+        const layout = getPointLabelLayout(annotation.geometry, scale)
+        labelX = layout.x
+        labelY = layout.y
+        labelFontSize = layout.fontSize
+        labelPadding = layout.padding
+        context.beginPath()
+        context.arc(
+          annotation.geometry.x,
+          annotation.geometry.y,
+          4 / scale,
+          0,
+          Math.PI * 2,
+        )
+        context.fill()
+        context.stroke()
+      } else if (annotation.geometry.type === 'polyline') {
+        const first = annotation.geometry.points[0]
+        if (first === undefined) {
+          continue
+        }
+        labelX = first[0]
+        labelY = first[1]
+        context.beginPath()
+        context.moveTo(first[0], first[1])
+        for (const [x, y] of annotation.geometry.points.slice(1)) {
+          context.lineTo(x, y)
+        }
+        context.stroke()
+      } else if (annotation.geometry.type === 'ellipse') {
+        labelX = annotation.geometry.cx - annotation.geometry.radiusX
+        labelY = annotation.geometry.cy - annotation.geometry.radiusY
+        traceEllipse(context, annotation.geometry)
         context.globalAlpha = 0.16
         context.fill()
         context.globalAlpha = 1
@@ -236,7 +349,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
       }
 
       if (label?.name) {
-        context.font = `${14 / scale}px sans-serif`
+        context.font = `${labelFontSize}px sans-serif`
         context.fillStyle = '#ffffff'
         context.strokeStyle = label.color
         context.lineWidth = 3 / scale
@@ -244,8 +357,8 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
         context.globalAlpha = 1
 
         const textWidth = context.measureText(label.name).width
-        const textHeight = 14 / scale
-        const padding = 4 / scale
+        const textHeight = labelFontSize
+        const padding = labelPadding
 
         context.strokeRect(
           labelX - padding,
@@ -335,26 +448,60 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
                 draft.geometry.width,
                 draft.geometry.height,
               )
+            } else if (draft.type === 'ellipse') {
+              traceEllipse(context, draft.geometry)
+              context.stroke()
+            } else if (draft.type === 'point') {
+              context.beginPath()
+              context.arc(
+                draft.point.x,
+                draft.point.y,
+                4 / scale,
+                0,
+                Math.PI * 2,
+              )
+              context.stroke()
+            } else if (draft.type === 'selection') {
+              renderSelectionOutline(context, draft, scale)
             } else if (draft.type !== 'eraser') {
-              const points = draft.type === 'polygon'
+              const points = draft.type === 'polygon' || draft.type === 'polyline'
                 ? draft.points.map(point => [point.x, point.y] as const)
-                : draft.geometry.type === 'polygon'
+                : draft.geometry.type === 'polygon' ||
+                    draft.geometry.type === 'polyline'
                   ? draft.geometry.points
                   : []
               if (draft.type === 'vector' && draft.geometry.type === 'rect') {
-                context.strokeRect(
+                traceRotatedRect(context, draft.geometry)
+                context.stroke()
+              } else if (
+                draft.type === 'vector' &&
+                draft.geometry.type === 'ellipse'
+              ) {
+                traceEllipse(context, draft.geometry)
+                context.stroke()
+              } else if (
+                draft.type === 'vector' &&
+                draft.geometry.type === 'point'
+              ) {
+                context.beginPath()
+                context.arc(
                   draft.geometry.x,
                   draft.geometry.y,
-                  draft.geometry.width,
-                  draft.geometry.height,
+                  4 / scale,
+                  0,
+                  Math.PI * 2,
                 )
+                context.stroke()
               } else if (points[0] !== undefined) {
                 context.beginPath()
                 context.moveTo(points[0][0], points[0][1])
                 for (const point of points.slice(1)) {
                   context.lineTo(point[0], point[1])
                 }
-                if (draft.type === 'vector') {
+                if (
+                  draft.type === 'vector' &&
+                  draft.geometry.type === 'polygon'
+                ) {
                   context.closePath()
                 }
                 context.stroke()
@@ -362,7 +509,7 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
             }
           }
           if (state.viewport !== null) {
-            // 选框和控制点也属于 interaction 层，尺寸始终按屏幕像素保持稳定。
+            // 完成后的套索边界独立于实时草稿，所以切换或使用其他工具时仍会显示。
             const { scale, offsetX, offsetY } = state.viewport
             context.setTransform(
               layerSize.dpr * scale,
@@ -372,6 +519,10 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
               layerSize.dpr * offsetX,
               layerSize.dpr * offsetY,
             )
+            if (state.selectionOutline !== null) {
+              renderSelectionOutline(context, state.selectionOutline, scale)
+            }
+            // 选框和控制点也属于 interaction 层，尺寸始终按屏幕像素保持稳定。
             const size = 8 / scale
             context.setLineDash([])
             for (const id of state.selectedIds) {
@@ -383,23 +534,94 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
                 state.interactionDraft.annotationId === id
                 ? state.interactionDraft.geometry
                 : annotation.geometry
-              const points = geometry.type === 'rect'
-                ? [
-                    [geometry.x, geometry.y],
-                    [geometry.x + geometry.width / 2, geometry.y],
-                    [geometry.x + geometry.width, geometry.y],
-                    [geometry.x + geometry.width, geometry.y + geometry.height / 2],
-                    [geometry.x + geometry.width, geometry.y + geometry.height],
-                    [geometry.x + geometry.width / 2, geometry.y + geometry.height],
-                    [geometry.x, geometry.y + geometry.height],
-                    [geometry.x, geometry.y + geometry.height / 2],
-                  ] as const
-                : geometry.type === 'polygon'
-                  ? geometry.points
-                  : []
               context.fillStyle = '#ffffff'
               context.strokeStyle = '#1677ff'
               context.globalAlpha = 1
+              if (geometry.type === 'rect') {
+                const handles = getRectHandlePoints(geometry, 24 / scale)
+                const north = handles.find(([handle]) => handle === 'north')?.[1]
+                const rotate = handles.find(([handle]) => handle === 'rotate')?.[1]
+                traceRotatedRect(context, geometry)
+                context.lineWidth = 1.5 / scale
+                context.stroke()
+                if (north !== undefined && rotate !== undefined) {
+                  context.beginPath()
+                  context.moveTo(north.x, north.y)
+                  context.lineTo(rotate.x, rotate.y)
+                  context.stroke()
+                }
+                for (const [handle, point] of handles) {
+                  if (handle === 'rotate') {
+                    context.beginPath()
+                    context.arc(point.x, point.y, size / 2, 0, Math.PI * 2)
+                    context.fill()
+                    context.stroke()
+                  } else {
+                    context.fillRect(
+                      point.x - size / 2,
+                      point.y - size / 2,
+                      size,
+                      size,
+                    )
+                    context.strokeRect(
+                      point.x - size / 2,
+                      point.y - size / 2,
+                      size,
+                      size,
+                    )
+                  }
+                }
+                continue
+              }
+              if (geometry.type === 'ellipse') {
+                const handles = getEllipseHandlePoints(geometry, 24 / scale)
+                const north = handles.find(([handle]) => handle === 'north')?.[1]
+                const rotate = handles.find(([handle]) => handle === 'rotate')?.[1]
+                traceEllipse(context, geometry)
+                context.lineWidth = 1.5 / scale
+                context.stroke()
+                if (north !== undefined && rotate !== undefined) {
+                  context.beginPath()
+                  context.moveTo(north.x, north.y)
+                  context.lineTo(rotate.x, rotate.y)
+                  context.stroke()
+                }
+                for (const [handle, point] of handles) {
+                  if (handle === 'rotate') {
+                    context.beginPath()
+                    context.arc(point.x, point.y, size / 2, 0, Math.PI * 2)
+                    context.fill()
+                    context.stroke()
+                  } else {
+                    context.fillRect(
+                      point.x - size / 2,
+                      point.y - size / 2,
+                      size,
+                      size,
+                    )
+                    context.strokeRect(
+                      point.x - size / 2,
+                      point.y - size / 2,
+                      size,
+                      size,
+                    )
+                  }
+                }
+                continue
+              }
+              if (geometry.type === 'point') {
+                context.beginPath()
+                context.arc(
+                  geometry.x,
+                  geometry.y,
+                  size / 2,
+                  0,
+                  Math.PI * 2,
+                )
+                context.fill()
+                context.stroke()
+                continue
+              }
               if (geometry.type === 'mask') {
                 const maskBounds = getBinaryMaskBounds(
                   decodeBinaryMaskRle(
@@ -422,6 +644,10 @@ export function createCanvasRenderer(annotator: Annotator): CanvasRenderer {
                   context.setLineDash([])
                 }
               }
+              const points = geometry.type === 'polygon' ||
+                geometry.type === 'polyline'
+                ? geometry.points
+                : []
               for (const [x, y] of points) {
                 context.fillRect(x - size / 2, y - size / 2, size, size)
                 context.strokeRect(x - size / 2, y - size / 2, size, size)

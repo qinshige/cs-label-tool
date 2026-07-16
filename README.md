@@ -1,14 +1,16 @@
 # cs-label-tool
 
-在线 Demo：[https://qinshige.github.io/cs-label-tool/](https://qinshige.github.io/cs-label-tool/)
+在线 Demo：<https://qinshige.github.io/cs-label-tool/>
 
 一个用 Canvas 做图片标注的 TypeScript 库。没有运行时依赖，可以直接调用函数，也可以使用已经绑定好的 `editor` 实例。
 
 当前支持：
 
 - 图片 URL、`Blob`、`ImageBitmap` 加载。
-- 选择、矩形、多边形、涂抹和橡皮擦工具。
-- 矩形移动与八方向缩放、多边形顶点编辑。
+- 选择、框选、套索选择、自由轮廓、点、矩形、椭圆、折线、多边形、涂抹和橡皮擦工具。
+- 矩形和椭圆的移动、旋转与八方向缩放，折线和多边形的顶点编辑。
+- 多选、图层顺序、锁定、隐藏、复制粘贴、克隆、分组和取消分组。
+- 图片级单选分类，分类结果与 Canvas 标注一起进入快照。
 - Mask 点击选择、拖拽、删除、改标签和近距离合并。
 - 涂抹区域重叠合并；橡皮擦实时透明预览和连通域分割。
 - 缩放、平移、适屏、坐标转换和 DPR 高分屏渲染。
@@ -16,9 +18,8 @@
 
 ## 环境与安装
 
-当前稳定版为 `2.0.0`，仅提供 ESM，没有运行时依赖。
+当前版本为 `2.0.4`，仅提供 ESM，没有运行时依赖。
 
-- Node.js 22.12+
 - Chrome、Edge、Firefox 最近两个大版本
 - Safari 17+
 - 仅提供 ESM
@@ -56,7 +57,11 @@ editor.tools.rect()
 ```html
 <div id="toolbar">
   <button id="select">选择</button>
+  <button id="freehand">自由轮廓</button>
+  <button id="point">点</button>
   <button id="rect">矩形</button>
+  <button id="ellipse">椭圆</button>
+  <button id="polyline">折线</button>
   <button id="polygon">多边形</button>
   <button id="brush">涂抹</button>
   <button id="eraser">橡皮擦</button>
@@ -85,8 +90,21 @@ document.querySelector('#select')?.addEventListener('click', () => {
   editor.tools.select()
 })
 
+document.querySelector('#freehand')?.addEventListener('click', () => {
+  editor.tools.freehand({ simplifyTolerance: 1.5 })
+})
+document.querySelector('#point')?.addEventListener('click', () => editor.tools.point())
+
 document.querySelector('#rect')?.addEventListener('click', () => {
   editor.tools.rect({ minimumSize: 3 })
+})
+
+document.querySelector('#ellipse')?.addEventListener('click', () => {
+  editor.tools.ellipse({ minimumRadius: 2 })
+})
+
+document.querySelector('#polyline')?.addEventListener('click', () => {
+  editor.tools.polyline()
 })
 
 document.querySelector('#polygon')?.addEventListener('click', () => {
@@ -124,7 +142,12 @@ window.addEventListener('beforeunload', () => {
 
 ```ts
 editor.tools.select()
+editor.tools.lasso()
+editor.tools.freehand({ simplifyTolerance: 1.5 })
+editor.tools.point()
 editor.tools.rect()
+editor.tools.ellipse()
+editor.tools.polyline()
 editor.tools.polygon()
 editor.tools.brush({ size: 24 })
 editor.tools.eraser({ size: 18 })
@@ -160,6 +183,7 @@ setActiveLabel(annotator, 'person')
 await setImageSource(annotator, createStandardImageSource('/a.webp'))
 
 const tools = createToolApi(annotator)
+tools.freehand({ labelId: 'person', simplifyTolerance: 2 })
 tools.brush({ size: 20 })
 ```
 
@@ -168,14 +192,24 @@ tools.brush({ size: 20 })
 ```ts
 import {
   useSelect,
+  useLasso,
+  useFreehand,
+  usePoint,
   useRect,
+  useEllipse,
+  usePolyline,
   usePolygon,
   useBrush,
   useEraser,
 } from 'cs-label-tool'
 
 useSelect(annotator)
+useLasso(annotator)
+useFreehand(annotator, { labelId: 'person', simplifyTolerance: 1.5 })
+usePoint(annotator, { labelId: 'person' })
 useRect(annotator, { labelId: 'person', minimumSize: 3 })
+useEllipse(annotator, { labelId: 'person', minimumRadius: 2 })
+usePolyline(annotator, { labelId: 'person' })
 usePolygon(annotator, { labelId: 'person' })
 useBrush(annotator, { labelId: 'person', size: 24, color: '#ff4d4f' })
 useEraser(annotator, { size: 18 })
@@ -183,25 +217,35 @@ useEraser(annotator, { size: 18 })
 
 ### 工具参数
 
-| 工具  | 方法                 | 参数                                  |
-| --- | ------------------ | ----------------------------------- |
-| 选择  | `select()`         | 无                                   |
-| 矩形  | `rect(options)`    | `labelId?`, `minimumSize?`          |
-| 多边形 | `polygon(options)` | `labelId?`                          |
-| 涂抹  | `brush(options)`   | `labelId?`, `size?`, `color?`（预览颜色） |
-| 橡皮擦 | `eraser(options)`  | `size?`                             |
+| 工具   | 方法                  | 参数                                  |
+| ---- | ------------------- | ----------------------------------- |
+| 选择   | `select()`          | 无                                   |
+| 套索选择 | `lasso()`           | 无                                   |
+| 自由轮廓 | `freehand(options)` | `labelId?`, `simplifyTolerance?`    |
+| 点    | `point(options)`    | `labelId?`                          |
+| 矩形   | `rect(options)`     | `labelId?`, `minimumSize?`          |
+| 椭圆   | `ellipse(options)`  | `labelId?`, `minimumRadius?`        |
+| 折线   | `polyline(options)` | `labelId?`                          |
+| 多边形  | `polygon(options)`  | `labelId?`                          |
+| 涂抹   | `brush(options)`    | `labelId?`, `size?`, `color?`（预览颜色） |
+| 橡皮擦  | `eraser(options)`   | `size?`                             |
 
-未传 `labelId` 时，矩形、多边形和涂抹使用当前激活标签。调用绘制工具前必须加载图片并激活一个标签。
+未传 `labelId` 时，点、矩形、椭圆、折线、多边形、自由轮廓和涂抹使用当前激活标签。调用绘制工具前必须加载图片并激活一个标签。
 
 ### 工具行为
 
-- 矩形：按下拖动，抬起完成；选择后可移动和拖动边框缩放。
+- 点：单击生成一个独立点，选择后可直接拖动。
+- 矩形：按下拖动，抬起完成；选择后可移动、旋转和拖动八个控制点缩放。
+- 椭圆：按下拖动，抬起完成；按住 `Shift` 画正圆，选择后的编辑方式与矩形一致。
+- 折线：逐点点击，按 `Enter` 或双击完成；双击线段插入顶点，`Backspace` 删除选中顶点。
 - 多边形：逐点点击，按 `Enter` 或双击完成，`Backspace` 删除最后一个点。
+- 自由轮廓：按住鼠标连续绘制，抬起后自动闭合并生成带标签的 `PolygonAnnotation`。
 - 涂抹：按下拖动，抬起完成；同标签且重叠的 mask 自动合并。
 - 橡皮擦：按下拖动时实时透明擦除，抬起提交；只影响 mask。
 - Mask 分割：橡皮擦切断区域后，每个连通块成为独立标注。
 - Mask 合并：选择后拖动，同标签区域进入约 8 屏幕像素范围时自动合并。
-- 视图导航：按住空格、中键或 `Alt + 左键` 拖动画布；滚轮以鼠标位置为锚点缩放。
+- 选择：空白处拖动是框选，`Shift + 点击` 追加或取消选择；组内标注默认整组选中，`Alt + 点击` 只选当前成员。
+- 视图导航：按住空格或中键拖动画布；滚轮以鼠标位置为锚点缩放。
 
 缩放时图片层、标注层和交互层共享同一 viewport 变换。矩形、多边形、标签和控制点会按当前 DPR 重新绘制；Mask 放大时关闭插值，保持像素边界清晰。原始位图本身仍受源图片分辨率限制，不能像真正的 SVG 一样无限放大。
 
@@ -282,6 +326,7 @@ const rectId = editor.addRect({
   y: 80,
   width: 300,
   height: 500,
+  rotation: 25, // 可选，顺时针角度；不传就是 0 度
 })
 ```
 
@@ -292,20 +337,23 @@ const rectId = editor.addRect({
 editor.tools.selectAnnotation(rectId)
 editor.tools.select()
 
-// 直接修改坐标和大小
+// 直接修改坐标、大小和角度
 editor.updateAnnotation(rectId, {
   type: 'rect',
   x: 120,
   y: 90,
   width: 320,
   height: 480,
+  rotation: 45,
 })
 
 // 删除
 editor.removeAnnotation(rectId)
 ```
 
-选择工具下，拖动矩形内部可以移动，拖动边框或控制点可以缩放。
+选择工具下，拖动矩形内部可以移动，拖动八个方形控制点可以缩放。上边中间外侧的圆形控制点用于旋转。矩形旋转后仍然按照自身方向缩放，不会退化成普通多边形。
+
+`rotation` 的单位是度，正值表示顺时针旋转。API 会把角度整理到 `0` 到 `360` 之间，例如 `450` 度保存为 `90` 度。旧数据不包含 `rotation` 时仍按普通矩形处理。
 
 ### 3. 多边形工具
 
@@ -355,7 +403,167 @@ editor.removeAnnotation(polygonId)
 
 快照里的 `PolygonGeometry.points` 是 `[x, y]` 元组；`addPolygon()` 的输入是 `{ x, y }`。这两个格式不要混用。
 
-### 4. 涂抹工具
+### 3.1 自由轮廓工具
+
+自由轮廓适合快速勾画不规则目标。按住鼠标开始绘制，移动鼠标记录轮廓，抬起后自动闭合。保存结果仍然是标准 `PolygonAnnotation`，不是套索选区，也没有新增一套特殊数据格式。
+
+使用当前激活标签：
+
+```ts
+editor.setActiveLabel('person')
+editor.tools.freehand()
+```
+
+指定标签和路径简化精度：
+
+```ts
+editor.tools.freehand({
+  labelId: 'person',
+  // 单位是原图像素。数值越大，生成的顶点越少
+  simplifyTolerance: 2,
+})
+```
+
+函数式写法：
+
+```ts
+import { useFreehand } from 'cs-label-tool'
+
+useFreehand(annotator, {
+  labelId: 'person',
+  simplifyTolerance: 2,
+})
+```
+
+交互式绘制不会同步返回 ID。可以通过 `change` 事件记录刚创建的自由轮廓，然后在业务按钮中执行编辑。选中以后，移动、顶点编辑、换标签、复制和删除都与普通多边形相同：
+
+```ts
+let latestFreehandId: string | null = null
+
+const stopTracking = editor.subscribe('change', event => {
+  if (event.kind !== 'annotation:add') return
+
+  const annotation = editor.snapshot().annotations.at(-1)
+  if (annotation?.geometry.type !== 'polygon') return
+
+  latestFreehandId = annotation.id
+})
+
+function editLatestFreehand() {
+  if (latestFreehandId === null) return
+
+  editor.tools.selectAnnotation(latestFreehandId)
+  editor.tools.select()
+
+  // 改标签
+  editor.tools.setSelectionLabel('vehicle')
+
+  // 克隆一个可以独立编辑的新标注
+  const copiedIds = editor.tools.duplicateSelection()
+  console.log('复制出的标注', copiedIds)
+
+  // 删除当前选中的标注
+  editor.tools.deleteSelection()
+  latestFreehandId = null
+}
+
+document.querySelector('#edit-latest')?.addEventListener(
+  'click',
+  editLatestFreehand,
+)
+window.addEventListener('beforeunload', stopTracking, { once: true })
+```
+
+选择工具激活后，拖动轮廓内部可以整体移动，拖动顶点可以修改边界。也可以直接使用 `updateAnnotation()`、`updateAnnotationLabel()` 和 `removeAnnotation()` 按 ID 操作。
+
+`simplifyTolerance` 默认是 `1.5`。传 `0` 会保留所有非重复采样点；传负数、`NaN` 或无限大会抛出 `RangeError`。少于三个有效点、零面积或自相交的路径不会创建标注。
+
+### 4. 点工具
+
+点是独立标注，不会伪装成一个很小的矩形。启用后单击图片即可落点：
+
+```ts
+editor.tools.point({ labelId: 'person' })
+
+const pointId = editor.addPoint({
+  labelId: 'person',
+  x: 320,
+  y: 180,
+})
+
+editor.updateAnnotation(pointId, { type: 'point', x: 340, y: 200 })
+editor.tools.selectAnnotation(pointId)
+editor.removeAnnotation(pointId)
+```
+
+函数式写法：
+
+```ts
+import { usePoint, addPoint, updateAnnotation, removeAnnotation } from 'cs-label-tool'
+
+usePoint(annotator, { labelId: 'person' })
+const id = addPoint(annotator, { labelId: 'person', x: 320, y: 180 })
+updateAnnotation(annotator, id, { type: 'point', x: 340, y: 200 })
+removeAnnotation(annotator, id)
+```
+
+### 5. 折线工具
+
+逐点点击，按 `Enter` 或双击完成。折线至少要有两个不同的点。
+
+```ts
+editor.tools.polyline({ labelId: 'vehicle' })
+
+const lineId = editor.addPolyline({
+  labelId: 'vehicle',
+  points: [
+    { x: 80, y: 120 },
+    { x: 220, y: 140 },
+    { x: 360, y: 110 },
+  ],
+})
+
+editor.updateAnnotation(lineId, {
+  type: 'polyline',
+  points: [[80, 120], [240, 150], [360, 110]],
+})
+editor.removeAnnotation(lineId)
+```
+
+选择折线后可拖动整条线，也可以拖顶点。双击线段会插入新顶点，选中顶点后按 `Backspace` 删除；至少保留两个点。
+
+函数式入口是 `usePolyline(annotator)`、`addPolyline(annotator, input)`、`updateAnnotation()` 和 `removeAnnotation()`。
+
+### 6. 椭圆和圆形工具
+
+拖动绘制椭圆，按住 `Shift` 拖动会得到正圆。选择后有八个缩放点和一个旋转点。
+
+```ts
+editor.tools.ellipse({ labelId: 'person', minimumRadius: 2 })
+
+const ellipseId = editor.addEllipse({
+  labelId: 'person',
+  cx: 420,
+  cy: 260,
+  radiusX: 90,
+  radiusY: 50,
+  rotation: 15,
+})
+
+editor.updateAnnotation(ellipseId, {
+  type: 'ellipse',
+  cx: 440,
+  cy: 280,
+  radiusX: 100,
+  radiusY: 60,
+  rotation: 30,
+})
+editor.removeAnnotation(ellipseId)
+```
+
+函数式入口是 `useEllipse`、`addEllipse`、`resizeEllipse`、`rotateEllipse`、`updateAnnotation` 和 `removeAnnotation`。
+
+### 7. 涂抹工具
 
 按住鼠标开始涂，松开鼠标保存。同标签的涂抹区域发生重叠时会自动合并。
 
@@ -427,7 +635,7 @@ editor.removeAnnotation(maskId)
 
 在选择工具下也可以直接拖动 mask。拖到同标签 mask 附近时，两块会合并成一个标注。
 
-### 5. 橡皮擦工具
+### 8. 橡皮擦工具
 
 橡皮擦不会创建新标注，它只擦已有的 mask。矩形和多边形不会被擦掉。
 
@@ -478,7 +686,7 @@ const firstBlockRle = blocks[0] === undefined
   : encodeBinaryMaskRle(blocks[0])
 ```
 
-### 6. 取消当前绘制
+### 9. 取消当前绘制
 
 用户可以按 `Escape`。代码里可以这样取消：
 
@@ -487,6 +695,141 @@ editor.tools.cancel()
 // 旧写法仍然可用
 editor.cancelGesture()
 ```
+
+## 多选、框选和套索选择
+
+选择工具在空白处拖动就是框选，套索选择用于自由圈选已有标注。两种选区都是“相交就选中”，不要求标注完全落在选区里。
+
+套索选择不会创建标注，也不绑定标签。需要按住拖动并生成可编辑标注时，请使用前面的 `freehand()` 自由轮廓工具。
+
+```ts
+editor.tools.select() // 空白拖动框选
+editor.tools.lasso()  // 按住鼠标圈选已有标注，松开完成选择
+
+// 已知 ID 时直接多选。默认会展开整组
+import {
+  selectAnnotations,
+  selectAnnotationsInBounds,
+  selectAnnotationsInLasso,
+  toggleAnnotationSelection,
+} from 'cs-label-tool'
+
+selectAnnotations(editor.annotator, [firstId, secondId])
+toggleAnnotationSelection(editor.annotator, thirdId)
+selectAnnotationsInBounds(editor.annotator, { x: 0, y: 0, width: 400, height: 300 })
+selectAnnotationsInLasso(editor.annotator, [
+  { x: 20, y: 20 },
+  { x: 300, y: 30 },
+  { x: 260, y: 240 },
+])
+
+// 不展开组，只选当前成员。画布上的 Alt + 点击也是这个行为
+selectAnnotations(editor.annotator, [firstId], { expandGroups: false })
+```
+
+`Shift + 点击`用于追加或取消选择。多选后拖动任意未锁定成员，所有未锁定选中项会一起移动；锁定项留在原位。
+
+## 分组、锁定、隐藏和图层
+
+常用操作可以直接走绑定好的 `editor.tools`：
+
+```ts
+editor.tools.groupSelection()
+editor.tools.ungroupSelection()
+editor.tools.lockSelection(true)
+editor.tools.lockSelection(false)
+editor.tools.hideSelection(true)
+editor.tools.hideSelection(false)
+editor.tools.bringSelectionForward()
+editor.tools.sendSelectionBackward()
+editor.tools.bringSelectionToFront()
+editor.tools.sendSelectionToBack()
+```
+
+函数式 API 适合列表菜单和批量任务：
+
+```ts
+import {
+  groupAnnotations,
+  ungroupAnnotations,
+  setAnnotationsLocked,
+  setAnnotationsHidden,
+  bringForward,
+  sendBackward,
+  bringToFront,
+  sendToBack,
+  removeAnnotations,
+  updateAnnotationsLabel,
+} from 'cs-label-tool'
+
+const groupId = groupAnnotations(annotator, [rectId, pointId])
+ungroupAnnotations(annotator, [rectId])
+setAnnotationsLocked(annotator, [rectId], true)
+setAnnotationsHidden(annotator, [pointId], true)
+bringToFront(annotator, [rectId, pointId])
+removeAnnotations(annotator, [rectId, pointId])
+updateAnnotationsLabel(annotator, [rectId, pointId], 'vehicle')
+```
+
+锁定标注仍可选中和查看，但不能移动、缩放、旋转、改顶点、删除、隐藏、改标签或调整图层。单条修改会抛出 `ANNOTATION_LOCKED`；批量操作会跳过锁定项，并返回实际修改数量。隐藏标注不渲染，也不参与画布命中和框选。
+
+组内任意成员默认带出整组。`Alt + 点击`只选当前成员。组删到只剩一个成员时，最后一个成员会自动解除分组。
+
+## 复制、粘贴和克隆
+
+这里使用库内部剪贴板，不会读取或覆盖用户的系统剪贴板：
+
+```ts
+editor.tools.copySelection()
+const pastedIds = editor.tools.paste()
+const clonedIds = editor.tools.duplicateSelection()
+```
+
+函数式写法：
+
+```ts
+import { copyAnnotations, pasteAnnotations, duplicateAnnotations } from 'cs-label-tool'
+
+copyAnnotations(annotator, [rectId, pointId])
+const pastedIds = pasteAnnotations(annotator)
+const clonedIds = duplicateAnnotations(annotator, [rectId, pointId])
+```
+
+粘贴会生成新的标注 ID 和组 ID，并按 12 个屏幕像素逐次错开。缩放画布后，偏移仍按屏幕距离计算。快捷键是 `Ctrl/Cmd + C`、`Ctrl/Cmd + V` 和 `Ctrl/Cmd + D`。
+
+## 图片单选分类
+
+分类属于整张图片，不是 Canvas 图形，所以不会出现在 `annotations` 或空间索引里。
+
+```ts
+editor.setClassificationOptions([
+  { id: 'normal', name: '正常', color: '#22c55e' },
+  { id: 'abnormal', name: '异常', color: '#ef4444' },
+])
+
+editor.setImageClassification('normal')
+console.log(editor.getImageClassification()) // normal
+console.log(editor.getClassificationOptions())
+editor.clearImageClassification()
+```
+
+函数式写法：
+
+```ts
+import {
+  setClassificationOptions,
+  setImageClassification,
+  getImageClassification,
+  getClassificationOptions,
+  clearImageClassification,
+} from 'cs-label-tool'
+
+setClassificationOptions(annotator, [{ id: 'normal', name: '正常' }])
+setImageClassification(annotator, 'normal')
+clearImageClassification(annotator)
+```
+
+分类是单选，设置新值会替换旧值。设置不存在的 ID 会抛出 `UNKNOWN_CLASSIFICATION`。分类变化支持撤销重做，也会进入 `getSnapshot()`。
 
 ## 标注查询和历史记录
 
@@ -579,6 +922,8 @@ interface AnnotationSnapshot {
   readonly revision: number
   readonly annotations: readonly Annotation[]
   readonly labels: readonly LabelDefinition[]
+  readonly classificationOptions?: readonly ClassificationOption[]
+  readonly classificationId?: string | null
 }
 ```
 
@@ -701,30 +1046,40 @@ unmountAnnotator('#app')
 
 ### 标注和标签
 
-| API                                  | 用途           |
-| ------------------------------------ | ------------ |
-| `addRect` / `addPolygon` / `addMask` | 直接添加标注       |
-| `updateAnnotation`                   | 修改标注几何       |
-| `updateAnnotationLabel`              | 修改单条标注的标签    |
-| `removeAnnotation`                   | 删除单条标注       |
-| `queryAnnotations`                   | 查询指定图片区域里的标注 |
-| `undo` / `redo`                      | 撤销和重做        |
-| `canUndo` / `canRedo`                | 判断当前能否撤销或重做  |
-| `addLabel` / `updateLabel`           | 添加或修改标签      |
-| `setActiveLabel` / `getActiveLabel`  | 设置或读取当前绘制标签  |
+| API                                                                              | 用途           |
+| -------------------------------------------------------------------------------- | ------------ |
+| `addPoint` / `addRect` / `addEllipse` / `addPolyline` / `addPolygon` / `addMask` | 直接添加标注       |
+| `updateAnnotation`                                                               | 修改标注几何       |
+| `updateAnnotationLabel`                                                          | 修改单条标注的标签    |
+| `removeAnnotation`                                                               | 删除单条标注       |
+| `queryAnnotations`                                                               | 查询指定图片区域里的标注 |
+| `undo` / `redo`                                                                  | 撤销和重做        |
+| `canUndo` / `canRedo`                                                            | 判断当前能否撤销或重做  |
+| `addLabel` / `updateLabel`                                                       | 添加或修改标签      |
+| `setActiveLabel` / `getActiveLabel`                                              | 设置或读取当前绘制标签  |
+| `setClassificationOptions` / `getClassificationOptions`                          | 设置或读取图片分类选项  |
+| `setImageClassification` / `getImageClassification` / `clearImageClassification` | 设置、读取或清空单选分类 |
 
 ### 内置工具和选择
 
-| API                                                    | 用途                      |
-| ------------------------------------------------------ | ----------------------- |
-| `createToolApi`                                        | 创建绑定到某个 annotator 的工具对象 |
-| `useSelect` / `useRect` / `usePolygon`                 | 启用选择、矩形、多边形工具           |
-| `useBrush` / `useEraser`                               | 启用涂抹、橡皮擦工具              |
-| `getActiveToolId`                                      | 读取当前工具 ID               |
-| `cancelActiveGesture`                                  | 取消当前未完成操作               |
-| `selectAnnotation` / `clearSelection` / `getSelection` | 管理选择状态                  |
-| `updateSelectedAnnotationsLabel`                       | 修改选中标注的标签               |
-| `deleteSelectedAnnotations`                            | 删除选中标注                  |
+| API                                                                  | 用途                      |
+| -------------------------------------------------------------------- | ----------------------- |
+| `createToolApi`                                                      | 创建绑定到某个 annotator 的工具对象 |
+| `useSelect` / `useLasso`                                             | 启用选择或套索选择工具             |
+| `useFreehand`                                                        | 启用自由轮廓绘制工具              |
+| `usePoint` / `useRect` / `useEllipse` / `usePolyline` / `usePolygon` | 启用矢量绘制工具                |
+| `useBrush` / `useEraser`                                             | 启用涂抹、橡皮擦工具              |
+| `getActiveToolId`                                                    | 读取当前工具 ID               |
+| `cancelActiveGesture`                                                | 取消当前未完成操作               |
+| `selectAnnotation` / `clearSelection` / `getSelection`               | 管理选择状态                  |
+| `updateSelectedAnnotationsLabel`                                     | 修改选中标注的标签               |
+| `deleteSelectedAnnotations`                                          | 删除选中标注                  |
+| `selectAnnotations` / `toggleAnnotationSelection`                    | 多选或切换单条选择               |
+| `selectAnnotationsInBounds` / `selectAnnotationsInLasso`             | 按框或套索相交选择               |
+| `groupAnnotations` / `ungroupAnnotations`                            | 分组或取消分组                 |
+| `setAnnotationsLocked` / `setAnnotationsHidden`                      | 批量锁定或隐藏                 |
+| `bringForward` / `sendBackward` / `bringToFront` / `sendToBack`      | 调整图层顺序                  |
+| `copyAnnotations` / `pasteAnnotations` / `duplicateAnnotations`      | 内部复制、粘贴和克隆              |
 
 ### 工具注册
 
@@ -751,18 +1106,22 @@ unmountAnnotator('#app')
 
 ### 几何和 Mask
 
-| API                                           | 用途                  |
-| --------------------------------------------- | ------------------- |
-| `normalizeRect` / `pointInRect`               | 矩形计算和命中判断           |
-| `pointInPolygon` / `validatePolygon`          | 多边形命中判断和有效性检查       |
-| `moveRect` / `resizeRect`                     | 计算移动或缩放后的矩形         |
-| `movePolygonVertex` / `removePolygonVertex`   | 移动或删除多边形顶点          |
-| `createBrushMaskGeometry`                     | 把笔迹点转成 MaskGeometry |
-| `encodeBinaryMaskRle` / `decodeBinaryMaskRle` | 二进制 mask 与 RLE 互转   |
-| `getBinaryMaskBounds`                         | 计算 mask 的实际像素边界     |
-| `translateBinaryMask`                         | 平移 mask 像素          |
-| `splitBinaryMaskComponents`                   | 把不相连的区域拆成多个 mask    |
-| `binaryMasksWithinDistance`                   | 判断两块 mask 是否足够接近    |
+| API                                              | 用途                  |
+| ------------------------------------------------ | ------------------- |
+| `normalizeRect` / `pointInRect`                  | 普通矩形计算和命中判断         |
+| `normalizeRotation` / `pointInRotatedRect`       | 角度整理和旋转矩形精确命中       |
+| `getRotatedRectCorners` / `getRotatedRectBounds` | 旋转矩形顶点和外接包围盒        |
+| `rectLocalToWorld` / `rectWorldToLocal`          | 矩形局部坐标与图片坐标互转       |
+| `pointInPolygon` / `validatePolygon`             | 多边形命中判断和有效性检查       |
+| `moveRect` / `resizeRect` / `rotateRect`         | 计算移动、缩放或旋转后的矩形      |
+| `getRectHandlePoints`                            | 计算八个缩放点和旋转手柄位置      |
+| `movePolygonVertex` / `removePolygonVertex`      | 移动或删除多边形顶点          |
+| `createBrushMaskGeometry`                        | 把笔迹点转成 MaskGeometry |
+| `encodeBinaryMaskRle` / `decodeBinaryMaskRle`    | 二进制 mask 与 RLE 互转   |
+| `getBinaryMaskBounds`                            | 计算 mask 的实际像素边界     |
+| `translateBinaryMask`                            | 平移 mask 像素          |
+| `splitBinaryMaskComponents`                      | 把不相连的区域拆成多个 mask    |
+| `binaryMasksWithinDistance`                      | 判断两块 mask 是否足够接近    |
 
 ### 底层视口、空间索引和工具状态机
 
@@ -777,6 +1136,7 @@ unmountAnnotator('#app')
 | `insertSpatialItem` / `updateSpatialItem`                   | 添加或更新索引项            |
 | `removeSpatialItem` / `querySpatialBounds`                  | 删除或查询索引项            |
 | `createSelectTool` / `createRectTool` / `createPolygonTool` | 创建底层交互工具            |
+| `createFreehandTool`                                        | 创建自由轮廓底层工具          |
 | `createBrushTool` / `createEraserTool`                      | 创建底层 mask 工具        |
 | `createRectToolState` / `reduceRectTool`                    | 单独使用矩形状态机           |
 | `createPolygonToolState` / `reducePolygonTool`              | 单独使用多边形状态机          |
@@ -788,7 +1148,7 @@ unmountAnnotator('#app')
 | `subscribe(annotator, 'change', listener)` | 监听标注、标签、图片、选择和历史变化 |
 | `subscribe(annotator, 'error', listener)`  | 监听订阅回调抛出的错误        |
 
-公共类型包括 `Annotator`、`AnnotatorInstance`、`Annotation`、`RectGeometry`、`PolygonGeometry`、`MaskGeometry`、`LabelDefinition`、`Tool`、`AnnotationToolApi`、`ImageSource`、`ViewportState`、`Point` 和 `Bounds`。
+公共类型包括 `Annotator`、`AnnotatorInstance`、`Annotation`、`PolygonAnnotation`、`RectGeometry`、`PolygonGeometry`、`MaskGeometry`、`FreehandToolOptions`、`LabelDefinition`、`Tool`、`AnnotationToolApi`、`ImageSource`、`ViewportState`、`Point` 和 `Bounds`。
 
 ## 核心类型
 
@@ -799,11 +1159,32 @@ interface RectGeometry {
   readonly y: number
   readonly width: number
   readonly height: number
+  readonly rotation?: number // 顺时针角度，单位为度
 }
 
 interface PolygonGeometry {
   readonly type: 'polygon'
   readonly points: readonly (readonly [number, number])[]
+}
+
+interface PointGeometry {
+  readonly type: 'point'
+  readonly x: number
+  readonly y: number
+}
+
+interface PolylineGeometry {
+  readonly type: 'polyline'
+  readonly points: readonly (readonly [number, number])[]
+}
+
+interface EllipseGeometry {
+  readonly type: 'ellipse'
+  readonly cx: number
+  readonly cy: number
+  readonly radiusX: number
+  readonly radiusY: number
+  readonly rotation?: number
 }
 
 interface MaskGeometry {
@@ -813,7 +1194,19 @@ interface MaskGeometry {
   readonly rle: readonly number[]
 }
 
-type Annotation = RectAnnotation | PolygonAnnotation | MaskAnnotation
+interface AnnotationBase {
+  readonly groupId?: string
+  readonly locked?: boolean
+  readonly hidden?: boolean
+}
+
+type Annotation =
+  | PointAnnotation
+  | RectAnnotation
+  | EllipseAnnotation
+  | PolylineAnnotation
+  | PolygonAnnotation
+  | MaskAnnotation
 type ToolCategory = 'selection' | 'drawing' | 'navigation' | 'utility'
 ```
 
@@ -826,3 +1219,4 @@ npm test
 npm run test:e2e
 npm run build
 ```
+

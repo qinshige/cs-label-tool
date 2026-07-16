@@ -281,10 +281,6 @@ export function useBrush(
   annotator: Annotator,
   options: Partial<BrushToolOptions> = {},
 ): void {
-  const labelId = resolveLabelId(annotator, options.labelId)
-  activateTool(annotator, createBrushTool({
-    labelId,
-    size: options.size ?? 10,
-    color: options.color ?? '#ff4d4f',
-  }))
+  resolveLabelId(annotator, options.labelId)
+  activateTool(annotator, createBrushTool(options))
 }

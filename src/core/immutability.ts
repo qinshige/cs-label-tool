@@ -1,9 +1,20 @@
 import type {
   Annotation,
+  EllipseGeometry,
   MaskGeometry,
+  PointGeometry,
   PolygonGeometry,
+  PolylineGeometry,
   RectGeometry,
 } from './types.js'
+
+type Geometry =
+  | RectGeometry
+  | PolygonGeometry
+  | MaskGeometry
+  | PointGeometry
+  | PolylineGeometry
+  | EllipseGeometry
 
 function deepFreeze(value: unknown, seen = new WeakSet<object>()): unknown {
   // metadata 可能存在共享引用，WeakSet 用来避免重复遍历和循环引用导致死递归。
@@ -18,8 +29,8 @@ function deepFreeze(value: unknown, seen = new WeakSet<object>()): unknown {
 }
 
 export function cloneGeometry(
-  geometry: RectGeometry | PolygonGeometry | MaskGeometry,
-): RectGeometry | PolygonGeometry | MaskGeometry {
+  geometry: Geometry,
+): Geometry {
   // 对外快照既要复制容器，也要冻结 points/rle 等内部数组，防止调用方改写内部状态。
   if (geometry.type === 'rect') {
     return Object.freeze({ ...geometry })
@@ -31,6 +42,17 @@ export function cloneGeometry(
         geometry.points.map(([x, y]) => Object.freeze([x, y] as const)),
       ),
     })
+  }
+  if (geometry.type === 'polyline') {
+    return Object.freeze({
+      type: 'polyline' as const,
+      points: Object.freeze(
+        geometry.points.map(([x, y]) => Object.freeze([x, y] as const)),
+      ),
+    })
+  }
+  if (geometry.type === 'point' || geometry.type === 'ellipse') {
+    return Object.freeze({ ...geometry })
   }
   return Object.freeze({
     type: 'mask' as const,
