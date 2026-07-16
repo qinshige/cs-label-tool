@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/cs-label-tool/assets/favicon-BYW9J8UN.ico" />
+    <title>cs-label-tool · AI 图像标注引擎</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; font: 14px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; color: #d7dee9; background: #0b0f14; }
+      button, input { font: inherit; }
+      #app { display: grid; grid-template-rows: 56px 48px minmax(0, 1fr); width: 100%; height: 100%; overflow: hidden; background: #0d1117; }
+
+      .demo-header { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid #202832; background: #111821; }
+      .demo-header h1 { margin: 0; font-size: 15px; font-weight: 700; color: #f4f7fb; letter-spacing: 0; }
+      .demo-header .left, .demo-header .right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+      .demo-header .current-label, .demo-header .zoom-level, .metric-pill { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; padding: 0 10px; background: #172231; border: 1px solid #243246; border-radius: 6px; font-size: 12px; color: #c7d0dd; }
+      .demo-header .current-label .label-badge { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
+      .demo-header .zoom-level { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #f4f7fb; }
+
+      .toolbar { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 7px 10px; border-bottom: 1px solid #202832; background: #0f151d; }
+      .toolbar button, .tool-btn, .label-btn, .action-btn, .mini-btn { border: 1px solid #2a3748; border-radius: 6px; color: #dce5f2; background: #17212e; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+      .toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 0 11px; font-size: 12px; white-space: nowrap; }
+      .toolbar button:hover, .tool-btn:hover, .label-btn:hover, .action-btn:hover, .mini-btn:hover { background: #203044; border-color: #3b4d64; }
+      .toolbar button:active, .tool-btn:active, .label-btn:active, .action-btn:active { transform: translateY(1px); }
+      .toolbar button:disabled { opacity: 0.42; cursor: not-allowed; }
+      .toolbar .divider { width: 1px; height: 22px; background: #293545; margin: 0 3px; }
+
+      .demo-main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 0; }
+      .demo-sidebar { display: flex; flex-direction: column; gap: 12px; overflow: auto; padding: 14px; border-left: 1px solid #202832; background: #111821; }
+      .demo-sidebar h3 { margin: 0 0 9px; font-size: 11px; font-weight: 700; color: #8c9aab; text-transform: uppercase; letter-spacing: 0.06em; }
+      .section { padding-bottom: 12px; border-bottom: 1px solid #202832; }
+      .section:last-child { border-bottom: 0; }
+
+      #tool-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .brush-size-control { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+      .brush-size-control input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: #4d86ff; cursor: pointer; }
+      .brush-size-value { min-width: 44px; color: #f4f7fb; font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; }
+      #label-selection { display: grid; gap: 7px; }
+      .tool-btn, .label-btn { display: flex; align-items: center; min-height: 36px; gap: 8px; padding: 0 10px; font-size: 12px; text-align: left; }
+      .tool-btn.active { background: #1e5be0; border-color: #4d86ff; color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); }
+      .label-btn { position: relative; width: 100%; justify-content: flex-start; background: #161f2b; }
+      .label-btn::before { content: ""; position: absolute; inset: 7px auto 7px 0; width: 4px; border-radius: 0 4px 4px 0; background: var(--label-color); }
+      .label-btn.active { border-color: var(--label-color); background: #1b2635; color: #fff; }
+      .label-btn .label-color { width: 12px; height: 12px; border-radius: 3px; margin-left: 2px; }
+
+      #label-color-list { display: grid; gap: 7px; }
+      .label-color-item { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 8px; background: #161f2b; border: 1px solid #202b39; border-radius: 6px; }
+      .label-color-item input[type="color"] { width: 24px; height: 24px; padding: 0; border: 1px solid #334155; border-radius: 4px; cursor: pointer; background: transparent; }
+      .label-color-item input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+      .label-color-item input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+      .label-color-name { flex: 1; font-size: 12px; }
+
+      .action-buttons { display: flex; flex-direction: column; gap: 6px; }
+      .action-btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 0 10px; font-size: 12px; }
+      .action-btn.danger, .toolbar button.danger { background: #3a1518; border-color: #71313a; color: #ffd7dc; }
+      .action-btn.danger:hover, .toolbar button.danger:hover { background: #561c22; border-color: #9f3c48; }
+
+      .info-panel { padding: 9px; background: #161f2b; border: 1px solid #202b39; border-radius: 6px; }
+      .info-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 11px; border-bottom: 1px solid #263244; }
+      .info-row:last-child { border-bottom: none; }
+      .info-row span:first-child { color: #94a3b8; }
+      .info-empty { text-align: center; color: #64748b; font-size: 11px; padding: 6px 0; }
+      .mini-btn { padding: 3px 7px; font-size: 10px; }
+      .mini-btn.danger { background: #4a171d; border-color: #79323b; color: #ffd7dc; }
+
+      #stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .stat-item { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; background: #161f2b; border: 1px solid #202b39; border-radius: 6px; font-size: 11px; }
+      .stat-color { width: 10px; height: 10px; border-radius: 2px; }
+      .stat-count { color: #f8fafc; font-weight: 600; }
+
+      #annotation-list { max-height: 220px; overflow-y: auto; }
+      .anno-item { display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 7px; background: #161f2b; border: 1px solid #202b39; border-radius: 6px; cursor: pointer; margin-bottom: 6px; transition: background 0.15s, border-color 0.15s; }
+      .anno-item:hover { background: #203044; }
+      .anno-item.selected { border-color: #4d86ff; background: #1b2a42; }
+      .anno-item.hidden { opacity: 0.55; }
+      .anno-index { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; background: #334155; border-radius: 3px; font-size: 10px; color: #94a3b8; }
+      .anno-color { width: 12px; height: 12px; border-radius: 2px; }
+      .anno-label { flex: 1; font-size: 12px; }
+      .anno-type { font-size: 10px; color: #64748b; }
+      .anno-delete { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: #3a1518; border: 1px solid #71313a; border-radius: 5px; color: #ffd7dc; font-size: 14px; cursor: pointer; }
+      .anno-delete:hover { background: #561c22; }
+      .anno-actions { display: flex; gap: 4px; }
+      .anno-action { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid #2a3748; border-radius: 5px; color: #cbd5e1; background: #17212e; cursor: pointer; }
+      .batch-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+      .classification-list { display: grid; gap: 6px; }
+      .classification-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 9px; border: 1px solid #2a3748; border-radius: 6px; color: #dce5f2; background: #161f2b; cursor: pointer; }
+      .classification-btn.active { border-color: #4d86ff; background: #1b2a42; }
+      .classification-dot { width: 10px; height: 10px; border-radius: 50%; }
+      .list-empty { text-align: center; color: #64748b; font-size: 12px; padding: 12px; }
+
+      cs-annotator { width: 100%; height: 100%; min-width: 0; min-height: 0; --cs-annotator-background: #070b10; --cs-annotator-border: #202832; }
+      cs-annotator::part(toolbar), cs-annotator::part(labels) { display: none; }
+      cs-annotator::part(shell) { grid-template-rows: minmax(0, 1fr); background: #070b10; }
+      cs-annotator::part(workspace) { grid-template-columns: minmax(0, 1fr); height: 100%; min-height: 0; }
+      cs-annotator::part(viewport) { background: #070b10; background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.055) 1px, transparent 0); background-size: 20px 20px; }
+      .demo-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 8px 18px; background: #2563eb; color: #fff; border-radius: 6px; font-size: 13px; pointer-events: none; opacity: 0; transition: opacity 0.25s; z-index: 100; }
+      .demo-toast.show { opacity: 1; }
+      #snapshot-dialog { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; color: #d7dee9; background: transparent; border: 0; }
+      #snapshot-dialog::backdrop { background: rgba(0, 0, 0, 0.64); }
+      .snapshot-dialog-shell { display: grid; grid-template-rows: auto minmax(180px, 1fr) auto; max-height: calc(100vh - 48px); overflow: hidden; background: #111821; border: 1px solid #202832; border-radius: 8px; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42); }
+      .snapshot-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 18px 12px; border-bottom: 1px solid #202832; }
+      .snapshot-dialog-header h2 { margin: 0; color: #f4f7fb; font-size: 16px; line-height: 1.3; letter-spacing: 0; }
+      .snapshot-dialog-header p { margin: 4px 0 0; color: #8c9aab; font-size: 12px; }
+      #snapshot-json { margin: 0; padding: 14px 18px; overflow: auto; color: #dce5f2; background: #0b0f14; border: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; white-space: pre; }
+      .snapshot-dialog-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid #202832; }
+      .snapshot-dialog-header button, .snapshot-dialog-footer button { border: 1px solid #2a3748; border-radius: 6px; color: #dce5f2; background: #17212e; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+      .snapshot-dialog-header button:hover, .snapshot-dialog-footer button:hover { background: #203044; border-color: #3b4d64; }
+      .snapshot-dialog-header button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
+      .snapshot-dialog-footer button { min-height: 32px; padding: 0 12px; font-size: 12px; }
+      #btn-copy-snapshot { background: #1e5be0; border-color: #4d86ff; color: #fff; }
+      #btn-copy-snapshot:hover { background: #2563eb; border-color: #6ea0ff; }
+    </style>
+    <script type="module" crossorigin src="/cs-label-tool/assets/demo-AXqXk6hQ.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="demo-header">
+        <div class="left">
+          <h1>cs-label-tool · AI 图像标注引擎</h1>
+        </div>
+        <div class="right">
+          <div class="current-label">
+            <span class="label-badge" id="current-label"></span>
+            <span id="current-label-text">人物</span>
+          </div>
+          <span class="zoom-level" id="zoom-level">100%</span>
+          <span style="color: #94a3b8;">标注数 <span id="anno-count" style="color: #f8fafc; font-weight: 500;">0</span></span>
+        </div>
+      </header>
+      <div class="toolbar">
+        <button id="btn-undo" title="撤销 Ctrl+Z">↩ 撤销</button>
+        <button id="btn-redo" title="重做 Ctrl+Y">↪ 重做</button>
+        <div class="divider"></div>
+        <button id="btn-zoom-in" title="放大 +">🔍+</button>
+        <button id="btn-zoom-out" title="缩小 -">🔍-</button>
+        <button id="btn-fit" title="适应屏幕 F">⤢ 适应</button>
+        <div class="divider"></div>
+        <button id="btn-select-image" title="选择图片">📷 图片</button>
+        <button id="btn-export" title="导出标注">📥 导出</button>
+        <button id="btn-get-result" title="获取标注结果">📋 获取结果</button>
+        <button id="btn-import" title="导入标注">📤 导入</button>
+        <button id="btn-clear" class="danger" title="清空标注">🗑️ 清空</button>
+      </div>
+      <div class="demo-main">
+        <cs-annotator id="annotator"></cs-annotator>
+        <aside class="demo-sidebar">
+          <div class="section">
+            <h3>图片分类</h3>
+            <div id="classification-list" class="classification-list"></div>
+          </div>
+          <div class="section">
+            <h3>选择标签</h3>
+            <div id="label-selection"></div>
+          </div>
+          <div class="section">
+            <h3>可用工具</h3>
+            <div id="tool-list"></div>
+          </div>
+          <div class="section" id="brush-settings">
+            <h3>画笔粗细</h3>
+            <div class="brush-size-control">
+              <span>笔触直径</span>
+              <output class="brush-size-value" id="brush-size-value" for="brush-size">16 px</output>
+              <input id="brush-size" type="range" min="1" max="80" step="1" value="16" aria-label="画笔粗细" />
+            </div>
+          </div>
+          <div class="section">
+            <h3>标签统计</h3>
+            <div id="stats"></div>
+          </div>
+          <div class="section">
+            <h3>选中标注</h3>
+            <div id="selected-info"></div>
+          </div>
+          <div class="section">
+            <h3>标注列表</h3>
+            <div id="annotation-list"></div>
+          </div>
+          <div class="section">
+            <h3>标签颜色</h3>
+            <div id="label-color-list"></div>
+          </div>
+          <div class="section">
+            <h3>操作提示</h3>
+            <div style="font-size:11px;color:#64748b;">
+              <div>🖱️ 左键：绘制/选择</div>
+              <div>按住拖动：绘制自由轮廓</div>
+              <div>空格/中键：平移</div>
+              <div>滚轮：以鼠标位置缩放</div>
+              <div>Shift：多选 / 绘制正圆</div>
+              <div>Alt+点击：只选组内当前标注</div>
+              <div>Enter：完成折线/多边形</div>
+              <div>Delete：删除选中标注</div>
+              <div>Ctrl+C/V/D：复制/粘贴/克隆</div>
+              <div>Ctrl+Z/Y：撤销/重做</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+      <div class="demo-toast" id="toast"></div>
+    </div>
+    <dialog id="snapshot-dialog" aria-labelledby="snapshot-dialog-title">
+      <div class="snapshot-dialog-shell">
+        <header class="snapshot-dialog-header">
+          <div>
+            <h2 id="snapshot-dialog-title">标注结果 JSON</h2>
+            <p>来自 getSnapshot(annotator) 的最新只读快照</p>
+          </div>
+          <button id="btn-close-snapshot" type="button" aria-label="关闭弹窗">×</button>
+        </header>
+        <pre id="snapshot-json" tabindex="0"></pre>
+        <footer class="snapshot-dialog-footer">
+          <button id="btn-copy-snapshot" type="button">复制 JSON</button>
+          <button id="btn-dismiss-snapshot" type="button">关闭</button>
+        </footer>
+      </div>
+    </dialog>
+  </body>
+</html>
